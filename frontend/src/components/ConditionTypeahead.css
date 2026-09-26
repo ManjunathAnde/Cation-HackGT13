@@ -1,0 +1,45 @@
+.typeahead {
+  position: relative;
+}
+
+.typeahead__list {
+  position: absolute;
+  z-index: 10;
+  top: calc(var(--field-height) + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-field);
+  background: var(--field);
+  box-shadow: 0 8px 24px rgba(20, 30, 22, 0.1);
+}
+
+.typeahead__option {
+  padding: 11px 12px;
+  border-radius: 7px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.typeahead__option--active {
+  background: var(--segment-bg);
+  color: var(--ink);
+}
+
+.typeahead__hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--ink-subtle);
+}
+
+.typeahead__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}

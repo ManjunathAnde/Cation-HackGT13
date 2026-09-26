@@ -1,0 +1,45 @@
+/* Design tokens, sampled from the onboarding design screenshot. Sizes are CSS px. */
+:root {
+  --page-bg: #e7ece8;
+  --surface: #f4f7f2;
+  --surface-top: #eef3f1;
+  --field: #ffffff;
+  --border: #dde0dc;
+  --border-pill: #d4d4d2;
+  --checkbox-border: #cacbcb;
+  --segment-bg: #edf0ed;
+  --brand: #246841;
+  --brand-contrast: #f2fff5;
+  --ink: #0d120e;
+  --ink-muted: #505650;
+  --ink-subtle: #5b605a;
+  --placeholder: #90928f;
+  --eyebrow: #2b5c9e;
+  --button: #18201b;
+  --button-text: #ffffff;
+  --danger: #b42318;
+  --danger-bg: #fdecea;
+
+  --font-sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: Georgia, "Times New Roman", serif;
+
+  --radius-field: 10px;
+  --radius-card: 32px;
+  --field-height: 48px;
+  --gap-group: 20px;
+  --column-width: 390px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page-bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}

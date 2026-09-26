@@ -1,0 +1,281 @@
+/* Shared UI pieces. Values come from styles/tokens.css. */
+
+.phone-column {
+  width: 100%;
+  max-width: var(--column-width);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 30px 21px 40px;
+  background: linear-gradient(180deg, var(--surface-top) 0, var(--surface) 240px);
+}
+
+@media (min-width: 420px) {
+  .phone-column {
+    min-height: calc(100vh - 48px);
+    margin: 24px auto;
+    border-radius: var(--radius-card);
+    box-shadow: 0 1px 2px rgba(20, 30, 22, 0.06), 0 12px 40px rgba(20, 30, 22, 0.08);
+  }
+}
+
+/* Wordmark: green "+" tile and product name */
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wordmark__tile {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--brand);
+}
+/* Bold "+" drawn with two bars, to match the design's glyph */
+.wordmark__tile::before,
+.wordmark__tile::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 13px;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--brand-contrast);
+  transform: translate(-50%, -50%);
+}
+.wordmark__tile::after {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+.wordmark__name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Field label row: label left, uppercase meta right */
+.field-label {
+  display: flex;
+  flex-wrap: wrap; /* a long meta moves to its own right-aligned line */
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: 12px;
+  row-gap: 4px;
+  margin-bottom: 10px;
+}
+.field-label__text {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.field-label__meta {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-subtle);
+  text-align: right;
+}
+
+/* Text input */
+.text-input {
+  display: block;
+  width: 100%;
+  height: var(--field-height);
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-field);
+  background: var(--field);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+.text-input::placeholder {
+  color: var(--placeholder);
+}
+.text-input:focus {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+.text-input--invalid {
+  border-color: var(--danger);
+}
+
+.field-error {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+/* Checkbox pill row */
+.check-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--field-height);
+  padding: 0 16px;
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-field);
+  background: var(--field);
+  cursor: pointer;
+  user-select: none;
+}
+.check-pill__input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.check-pill__box {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--checkbox-border);
+  border-radius: 5px;
+  background: var(--field);
+  color: var(--field);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+.check-pill__label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+.check-pill--checked {
+  border-color: var(--brand);
+}
+.check-pill--checked .check-pill__box {
+  border-color: var(--brand);
+  background: var(--brand);
+}
+.check-pill--checked .check-pill__label {
+  color: var(--ink);
+}
+.check-pill:has(.check-pill__input:focus-visible) {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+/* Removable pill (selected typeahead values) */
+.removable-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 6px 0 14px;
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-field);
+  background: var(--field);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.removable-pill__remove {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-subtle);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.removable-pill__remove:hover,
+.removable-pill__remove:focus-visible {
+  background: var(--segment-bg);
+  color: var(--ink);
+}
+
+/* Segmented control (frequency) */
+.segmented {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--field-height);
+  padding: 0 16px;
+  border-radius: var(--radius-field);
+  background: var(--segment-bg);
+}
+.segmented__options {
+  display: flex;
+  gap: 18px;
+}
+.segmented__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-subtle);
+  cursor: pointer;
+}
+.segmented__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-subtle);
+}
+.segmented__option[aria-checked="true"] {
+  color: var(--ink);
+  font-weight: 700;
+}
+.segmented__option[aria-checked="true"] .segmented__dot {
+  border-color: var(--brand);
+  background: var(--brand);
+}
+.segmented__option:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.segmented__caption {
+  font-size: 13px;
+  color: var(--ink-subtle);
+  text-align: right;
+}
+
+/* Primary button */
+.primary-button {
+  display: block;
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: var(--radius-field);
+  background: var(--button);
+  color: var(--button-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.primary-button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Error notice */
+.notice {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-field);
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 14px;
+}

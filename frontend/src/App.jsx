@@ -1,25 +1,17 @@
-import { useEffect, useState } from "react";
+import { usePath } from "./router.jsx";
+import Brief from "./pages/Brief.jsx";
+import Health from "./pages/Health.jsx";
+import NotFound from "./pages/NotFound.jsx";
+import Onboard from "./pages/Onboard.jsx";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const ROUTES = {
+  "/": Health,
+  "/phone/onboard": Onboard,
+  "/phone/brief": Brief,
+};
 
 export default function App() {
-  const [status, setStatus] = useState("checking");
-
-  useEffect(() => {
-    fetch(`${API_URL}/health`)
-      .then((res) => res.json())
-      .then((data) => setStatus(data.ok ? "connected" : "down"))
-      .catch(() => setStatus("down"));
-  }, []);
-
-  return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
-      <h1>Cation</h1>
-      <p>
-        {status === "checking" && "checking backend…"}
-        {status === "connected" && "backend connected ✓"}
-        {status === "down" && "backend not running"}
-      </p>
-    </main>
-  );
+  const path = usePath();
+  const Page = ROUTES[path] || NotFound;
+  return <Page />;
 }
