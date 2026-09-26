@@ -3,6 +3,9 @@
 Each checkpoint is a small, working step. A checkpoint is **done** only when its test passes and its
 notes are written.
 
+**Build order:** 1–5 → 10a → 10b → 6 → 7 → 8 → 9 → 11 → 12. Checkpoints keep their numbers; sections
+below follow the build order.
+
 ## Process rules
 
 - **Document as you go:** add 3–5 lines to `docs/PROGRESS.md` per checkpoint (what works, how to test,
@@ -70,6 +73,21 @@ Error cases: unknown doctor → 404; replying to a card twice → 400; POST /sen
 unanswered → 400.
 **Document:** example request/response for /reply in README.
 
+## Checkpoint 10a — Live LLM with failover
+**Goal:** the explorer's related-topic suggestions come from Gemini → Groq → fixed fallback; plain code
+still decides what is skipped, blocked, or offered.
+
+**Test:** `python -m app.llm_check` shows `by: gemini`, then `groq` (Gemini key hidden in memory), then
+`fallback` (both hidden), each with valid suggestions. `demo_run` and `api_check` pass with
+`LLM_MODE=off`. With `LLM_MODE=live`, a replay of the demo shows `topic_offered` with `by: gemini` in
+/metrics, and any off-label suggestion is logged as `topic_blocked`.
+**Document:** note which models were used.
+
+## Checkpoint 10b — Redis cache in front of provider calls
+**Goal:** cache LLM suggestions in Redis in front of the provider calls, without changing
+`suggest_related`'s callers; `by` gains `redis`. The Redis client dependency needs approval (not in
+blueprint §13).
+
 ## Checkpoint 6 — Doctor portal: onboarding
 **Goal:** Dr. Patel's profile is created from the UI.
 
@@ -95,11 +113,6 @@ reflects the reply. Earlier messages stay visible.
 score 72, reply rate 100%, yes rate 67%, 1 topic added, 2 saved.
 **Document:** screenshot. ← **MVP complete here.**
 
-## Checkpoint 10 — Live LLM with failover
-**Test:** with Gemini key → timeline shows `by: gemini`. Remove Gemini key → `by: groq`.
-Remove both → `by: cache`. Demo path unchanged in all three.
-**Document:** note which models were used.
-
 ## Checkpoint 11 — Mock ION panel
 **Test:** panel shows "General update for endocrinology (specialty only)" before any taps and
 "kidney outcomes content (top score 3 from replies)" after the path.
@@ -107,7 +120,7 @@ Remove both → `by: cache`. Demo path unchanged in all three.
 
 ## Checkpoint 12 — Demo freeze
 **Goal:** nothing new, only reliability.
-- [ ] All external data cached; demo works with Wi-Fi off (except live LLM, which falls back to cache)
+- [ ] All external data cached; demo works with Wi-Fi off (except live LLM, which falls back to a fixed list)
 - [ ] 3 full dry runs, timed; 2-minute video recorded
 - [ ] Devpost writeup, architecture slide, roadmap slide
 

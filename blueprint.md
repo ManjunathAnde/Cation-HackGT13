@@ -60,7 +60,7 @@ React (Vite) → FastAPI → core intelligence layer → in-memory doctor state
 - All decisions live in `backend/app/core.py`.
 - Doctor state lives in memory only and resets when the server restarts.
 - External APIs are called only by offline scripts that write the cache, never during a demo
-  request (except the explorer's LLM call from Checkpoint 10, which falls back to cache).
+  request (except the explorer's LLM call from Checkpoint 10a, which falls back to a fixed list).
 
 ---
 
@@ -117,11 +117,14 @@ Every event: `t` (epoch seconds, float), `type`, `doctor`, plus the details belo
 | card_blocked | card, reason |
 | reply | card, answer, scores (after update) |
 | topic_muted | topic |
-| topic_offered | topic, by |
-| topic_blocked | topic, reason, by |
+| topic_offered | topic, by, providers_tried |
+| topic_blocked | topic, reason, by, providers_tried |
 | topic_answer | topic, answer |
 
-`by` is `stub` (Checkpoints 3–9), then `gemini`, `groq`, or `cache` (Checkpoint 10+).
+`by` is `stub` before Checkpoint 10a, then `gemini`, `groq`, or `fallback`; `redis` is added in 10b.
+`providers_tried` lists each provider attempted with its result, e.g.
+`[{"provider": "gemini", "result": "timeout"}, {"provider": "groq", "result": "ok"}]`;
+result ∈ `ok`, `timeout`, `invalid_output`, `error` (never error text or keys). Empty when `LLM_MODE=off`.
 
 ### 5.4 Files
 - `backend/data/label.json`: `drug`, `approved_topics[]`, `sentences[]` (verbatim label text)
@@ -205,8 +208,8 @@ Candidates exclude cards already sent or blocked.
 - After a reply, check the replied card's topics in their card order. A topic is checked if its score
   is **≥ 3** and it is not in `explored`.
 - Each checked topic is added to `explored` (its one chance is used, even if nothing is offered).
-- Suggestions: 2 related topics from the candidate list — the fixed stub
-  `["cardio-kidney-metabolic care", "weight management"]` until Checkpoint 10, then the LLM.
+- Suggestions: 2 related topics from the candidate list, from the LLM (§8); fixed fallback
+  `["cardio-kidney-metabolic care", "weight management"]` when `LLM_MODE=off` or all providers fail.
 - Processing suggestions in order: skip topics the doctor has or has muted; topics not approved →
   logged `topic_blocked` with reason `outside Ozempic approved uses → route to medical information`;
   the first remaining approved topic becomes the offer (logged `topic_offered`,
@@ -232,15 +235,17 @@ Candidates exclude cards already sent or blocked.
 
 ---
 
-## 8. LLM Usage (Checkpoint 10+)
+## 8. LLM Usage (Checkpoint 10a+)
 
 | Use | Output validation |
 | --- | --- |
-| Explorer related topics | Every topic must be in the candidate list; otherwise use the stub |
+| Explorer related topics | Parsed JSON list of 1–2 distinct topics, each in the candidate list (markdown code fences stripped first); otherwise try the next provider, then the fallback |
 | PubMed query wording (optional) | Must return ≥1 result, else use the §6 MeSH query |
 | One-line study summary (optional) | Plain text, ≤ 20 words, no clinical advice |
 
-- Order: Gemini → Groq → cache. Timeout 8 s per provider. Log which one answered in `by`.
+- Order: Gemini → Groq → fallback. Timeout 5 s per provider. Log which one answered in `by`.
+- Settings (backend/.env): `GEMINI_API_KEY`, `GROQ_API_KEY`, `GEMINI_MODEL`, `GROQ_MODEL`,
+  `LLM_MODE` (`live` | `off`, default `off`). A missing key skips that provider.
 - Prompts request JSON only.
 - Prohibited: clinical guidance, medical advice, generating claims, making any decision.
 - Never send real personal or patient data to an LLM.
@@ -326,6 +331,9 @@ interests `ozempic safety`; frequency `weekly`.
 | 3 | Kidney study → yes | kidney outcomes 3; saved; offer `cardio-kidney-metabolic care`; `weight management` blocked |
 | 4 | Offer → yes | cardio-kidney-metabolic care 1; ION: `kidney outcomes content` (top score 3) |
 | End | Metrics | engagement 72, reply_rate 1.0, yes_rate 0.67, topics_added 1, muted 0, saved 2 |
+
+The values above hold with `LLM_MODE=off`. With `LLM_MODE=live` the step-3 offer and block come
+from the LLM and may differ.
 
 ---
 

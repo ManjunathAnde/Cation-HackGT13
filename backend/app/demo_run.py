@@ -3,9 +3,13 @@
 Run from backend/:  python -m app.demo_run
 """
 
+import os
 import sys
 
-from app import core
+# The §12 path is fixed only with the LLM off; set before importing core so .env can't override it.
+os.environ["LLM_MODE"] = "off"
+
+from app import core  # noqa: E402
 
 DOCTOR = "dr_patel"
 
@@ -101,7 +105,7 @@ def main():
     assert reply3["offer"] == "cardio-kidney-metabolic care"
     assert event_of(
         timeline, "topic_blocked", topic="weight management",
-        reason="outside Ozempic approved uses → route to medical information", by="stub",
+        reason="outside Ozempic approved uses → route to medical information", by="fallback",
     )
     # Step 4: offer accepted
     assert step4["topics"]["cardio-kidney-metabolic care"] == 1

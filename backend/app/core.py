@@ -8,12 +8,15 @@ import time
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
+from app import llm
+
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 LABEL = json.loads((DATA_DIR / "label.json").read_text(encoding="utf-8"))
 CARDS = json.loads((DATA_DIR / "cache.json").read_text(encoding="utf-8"))["cards"]
 CARDS_BY_ID = {card["id"]: card for card in CARDS}
 
 APPROVED_TOPICS = LABEL["approved_topics"]
+CANDIDATE_TOPICS = APPROVED_TOPICS + ["weight management"]  # what the explorer may suggest (§6)
 LABEL_SENTENCES = {sentence.strip() for sentence in LABEL["sentences"]}
 CONDITION_TOPICS = {
     "type 2 diabetes": "glycemic control",
@@ -23,10 +26,6 @@ CONDITION_TOPICS = {
 SCORE_CHANGE = {"yes": 1, "not_interested": -1, "no_reply": -0.25}
 MUTE_AT = -2
 EXPLORE_AT = 3
-
-# Fixed explorer suggestions until the LLM arrives in Checkpoint 10.
-EXPLORER_STUB = ["cardio-kidney-metabolic care", "weight management"]
-EXPLORER_BY = "stub"
 BLOCKED_TOPIC_REASON = "outside Ozempic approved uses → route to medical information"
 
 DOCTORS = {}
@@ -232,24 +231,30 @@ def explore(doctor, card):
         if doctor["topics"][topic] < EXPLORE_AT:
             continue
         doctor["explored"].append(topic)
-        offer = offer_from(doctor, EXPLORER_STUB)
+        tried = []
+        suggestions, by = llm.suggest_related(
+            doctor["specialty"], topic, list(doctor["topics"]), CANDIDATE_TOPICS, tried=tried,
+        )
+        offer = offer_from(doctor, suggestions, by, tried)
         if offer:
             return offer
     return None
 
 
-def offer_from(doctor, suggestions):
+def offer_from(doctor, suggestions, by, tried):
+    """Plain-code rules applied to the suggestions: skip, block, or offer (§7.5)."""
     offer = None
     for topic in suggestions:
         if topic in doctor["topics"]:  # includes muted topics
             continue
         if topic not in APPROVED_TOPICS:
-            log(doctor["id"], "topic_blocked", topic=topic, reason=BLOCKED_TOPIC_REASON, by=EXPLORER_BY)
+            log(doctor["id"], "topic_blocked", topic=topic, reason=BLOCKED_TOPIC_REASON,
+                by=by, providers_tried=tried)
             continue
         if offer is None and doctor["pending_offer"] is None:
             offer = topic
             doctor["pending_offer"] = topic
-            log(doctor["id"], "topic_offered", topic=topic, by=EXPLORER_BY)
+            log(doctor["id"], "topic_offered", topic=topic, by=by, providers_tried=tried)
     return offer
 
 

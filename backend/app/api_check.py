@@ -41,6 +41,16 @@ def first_card(kind, topic):
     return next(card for card in CARDS if card["kind"] == kind and topic in card["topics"])
 
 
+def stop_if_llm_live(timeline):
+    """The §12 path is fixed only with the LLM off; a live server makes step 3 vary."""
+    explorer = [event for event in timeline if event["type"] in ("topic_offered", "topic_blocked")]
+    if any(event["by"] != "fallback" for event in explorer):
+        raise SystemExit(
+            "Server is running with LLM_MODE=live. Restart it with LLM_MODE=off to run api_check "
+            "(the §12 path is fixed only with the LLM off)."
+        )
+
+
 def send_and_reply(step, answer):
     card = ok("POST", f"/send/{DOCTOR}")["card"]
     result = ok("POST", "/reply", {"doctor_id": DOCTOR, "card_id": card["id"], "answer": answer})
@@ -56,6 +66,7 @@ def send_and_reply(step, answer):
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     label_card = first_card("label", "kidney outcomes")
     safety_study = first_card("study", "ozempic safety")
     kidney_study = first_card("study", "kidney outcomes")
@@ -74,6 +85,7 @@ def main():
     twice = call("POST", "/reply", {"doctor_id": DOCTOR, "card_id": card1["id"], "answer": "yes"})
     card2, _, step2 = send_and_reply(2, "not_interested")
     card3, reply3, step3 = send_and_reply(3, "yes")
+    stop_if_llm_live(ok("GET", f"/metrics/{DOCTOR}")["timeline"])
 
     inbox_before = ok("GET", f"/inbox/{DOCTOR}")
     send_while_pending = call("POST", f"/send/{DOCTOR}")
@@ -110,6 +122,7 @@ def main():
     assert any(
         event["type"] == "topic_blocked" and event["topic"] == "weight management"
         and event["reason"] == "outside Ozempic approved uses → route to medical information"
+        and event["by"] == "fallback"
         for event in metrics["timeline"]
     )
     # After the 3rd reply: the offer is active and sending is refused
