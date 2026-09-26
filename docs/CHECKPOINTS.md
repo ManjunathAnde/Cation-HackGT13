@@ -84,9 +84,17 @@ still decides what is skipped, blocked, or offered.
 **Document:** note which models were used.
 
 ## Checkpoint 10b — Redis cache in front of provider calls
-**Goal:** cache LLM suggestions in Redis in front of the provider calls, without changing
-`suggest_related`'s callers; `by` gains `redis`. The Redis client dependency needs approval (not in
-blueprint §13).
+**Goal:** cache the explorer's LLM suggestions in Upstash Redis in front of the providers
+(Redis → Gemini → Groq → fallback), without changing `suggest_related`'s signature or callers;
+`by` gains `redis`.
+
+**Test:** `python -m app.llm_check` shows gemini (redis miss) → redis (hit) → gemini (redis
+unreachable) → groq → fallback, then `LLM CHECK OK`. `demo_run` → `DEMO PATH OK`; `api_check`
+against a server started with `LLM_MODE=off` → `API PATH OK` (neither touches Redis). Live server:
+replay the demo (onboard → send/reply ×3) → `topic_offered` with `by: gemini`; re-onboard and replay →
+`by: redis`, with a faster third /reply. The Upstash Data Browser shows a key starting with
+`cation:explorer:v1:`. No key, token, or Redis password appears in any output or file.
+**Document:** the third /reply's response time for both replays.
 
 ## Checkpoint 6 — Doctor portal: onboarding
 **Goal:** Dr. Patel's profile is created from the UI.

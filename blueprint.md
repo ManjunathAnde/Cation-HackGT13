@@ -121,10 +121,12 @@ Every event: `t` (epoch seconds, float), `type`, `doctor`, plus the details belo
 | topic_blocked | topic, reason, by, providers_tried |
 | topic_answer | topic, answer |
 
-`by` is `stub` before Checkpoint 10a, then `gemini`, `groq`, or `fallback`; `redis` is added in 10b.
-`providers_tried` lists each provider attempted with its result, e.g.
-`[{"provider": "gemini", "result": "timeout"}, {"provider": "groq", "result": "ok"}]`;
-result ∈ `ok`, `timeout`, `invalid_output`, `error` (never error text or keys). Empty when `LLM_MODE=off`.
+`by` is `stub` before Checkpoint 10a, then `redis`, `gemini`, `groq`, or `fallback` (10b adds `redis`).
+`providers_tried` lists each source attempted with its result, Redis first, e.g.
+`[{"provider": "redis", "result": "miss"}, {"provider": "gemini", "result": "timeout"}, {"provider": "groq", "result": "ok"}]`.
+Redis result ∈ `hit`, `miss`, `unreachable` (no Redis entry when `REDIS_URL` is not set); provider
+result ∈ `ok`, `timeout`, `invalid_output`, `error` (never error text, keys, or `REDIS_URL`).
+Empty when `LLM_MODE=off`.
 
 ### 5.4 Files
 - `backend/data/label.json`: `drug`, `approved_topics[]`, `sentences[]` (verbatim label text)
@@ -243,9 +245,19 @@ Candidates exclude cards already sent or blocked.
 | PubMed query wording (optional) | Must return ≥1 result, else use the §6 MeSH query |
 | One-line study summary (optional) | Plain text, ≤ 20 words, no clinical advice |
 
-- Order: Gemini → Groq → fallback. Timeout 5 s per provider. Log which one answered in `by`.
+- Order: Redis cache → Gemini → Groq → fallback. Timeout 5 s per provider. Log which one answered in `by`.
+- Redis cache (Checkpoint 10b, live mode only; `LLM_MODE=off` skips Redis entirely):
+  - Key: `cation:explorer:v1:` + SHA-256 of specialty, liked topic, sorted current topics, sorted
+    candidates, both model names, and a prompt version constant.
+  - Hit: cached topics are re-validated against the current candidate list (invalid → miss) and
+    returned with `by = redis`, with no provider calls.
+  - Miss: providers are asked as usual; a valid provider answer is stored with a 24-hour expiry.
+    The fallback is never cached.
+  - Every Redis call times out after 2 s, with no retries. Unreachable or erroring Redis is skipped
+    (`unreachable`) and the providers are tried as usual; no write is attempted after that.
 - Settings (backend/.env): `GEMINI_API_KEY`, `GROQ_API_KEY`, `GEMINI_MODEL`, `GROQ_MODEL`,
-  `LLM_MODE` (`live` | `off`, default `off`). A missing key skips that provider.
+  `LLM_MODE` (`live` | `off`, default `off`), `REDIS_URL` (Upstash, `rediss://` with TLS).
+  A missing key skips that provider; a missing `REDIS_URL` skips the cache.
 - Prompts request JSON only.
 - Prohibited: clinical guidance, medical advice, generating claims, making any decision.
 - Never send real personal or patient data to an LLM.
@@ -339,7 +351,7 @@ from the LLM and may differ.
 
 ## 13. Allowed Dependencies
 
-- Backend: fastapi, uvicorn[standard], pydantic, python-dotenv, httpx, google-genai, groq
+- Backend: fastapi, uvicorn[standard], pydantic, python-dotenv, httpx, google-genai, groq, redis
 - Frontend: react, react-dom, vite, @vitejs/plugin-react
 
 Anything else requires approval. Tests use plain `assert` scripts (no pytest).

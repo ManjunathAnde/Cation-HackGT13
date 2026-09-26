@@ -1,18 +1,22 @@
 """LLM suggestions for the explorer (blueprint §8). The LLM only suggests; core.py decides.
 
-Order: Gemini → Groq → fixed fallback. We wait at most 5 seconds per provider, and its output
-is validated before use. Settings come from backend/.env; values already set in the
-environment win, so a script or shell can force LLM_MODE=off.
-Never prints or logs key values or provider error text.
+Order: Redis cache → Gemini → Groq → fixed fallback. We wait at most 5 seconds per provider
+and 2 seconds per Redis call; every answer, cached or fresh, is validated before use.
+Settings come from backend/.env; values already set in the environment win, so a script or
+shell can force LLM_MODE=off. Never prints or logs keys, REDIS_URL, or error text.
 """
 
+import hashlib
 import json
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import redis
 from dotenv import load_dotenv
+from redis.backoff import NoBackoff
+from redis.retry import Retry
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -27,22 +31,46 @@ KEY_NAMES = {"gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY"}
 MODEL_NAMES = {"gemini": "GEMINI_MODEL", "groq": "GROQ_MODEL"}
 CODE_FENCE = re.compile(r"^\s*```[a-zA-Z]*\s*|\s*```\s*$")
 
+PROMPT_VERSION = "1"  # bump when build_prompt changes, so old cached answers are not reused
+CACHE_PREFIX = "cation:explorer:v1:"
+CACHE_TTL_SECONDS = 86_400
+REDIS_TIMEOUT_SECONDS = 2
+REDIS_CLIENTS = {}  # one reusable client per REDIS_URL (TLS setup is slow)
+
 
 def suggest_related(specialty, liked_topic, current_topics, candidates, tried=None):
-    """Return (topics, by). If `tried` is a list, one {"provider", "result"} entry is
-    appended per provider attempted; result is ok, timeout, invalid_output, or error."""
+    """Return (topics, by). If `tried` is a list, one {"provider", "result"} entry is appended
+    per source attempted: redis → hit, miss, or unreachable; providers → ok, timeout,
+    invalid_output, or error."""
     tried = [] if tried is None else tried
     if os.getenv("LLM_MODE", "off") != "live":
         return list(FALLBACK), "fallback"
 
+    models = {provider: os.getenv(MODEL_NAMES[provider]) or DEFAULT_MODELS[provider] for provider in DEFAULT_MODELS}
+    key = cache_key(specialty, liked_topic, current_topics, candidates, models)
+    cached, lookup = cache_get(key, candidates)
+    if lookup:
+        tried.append({"provider": "redis", "result": lookup})
+    if cached:
+        return cached, "redis"
+
     prompt = build_prompt(specialty, liked_topic, current_topics, candidates)
+    topics, provider = ask_providers(prompt, models, candidates, tried)
+    if provider:
+        if lookup == "miss":  # only write if Redis just answered; skips a second timeout
+            cache_set(key, topics)
+        return topics, provider
+    return list(FALLBACK), "fallback"  # never cached
+
+
+def ask_providers(prompt, models, candidates, tried):
+    """Gemini, then Groq. Return (topics, provider) or (None, None) if both fail."""
     for provider, ask in (("gemini", ask_gemini), ("groq", ask_groq)):
         key = os.getenv(KEY_NAMES[provider])
         if not key:
             continue
-        model = os.getenv(MODEL_NAMES[provider]) or DEFAULT_MODELS[provider]
         try:
-            text = CALLS.submit(ask, prompt, key, model).result(timeout=TIMEOUT_SECONDS)
+            text = CALLS.submit(ask, prompt, key, models[provider]).result(timeout=TIMEOUT_SECONDS)
         except Exception as exc:  # any provider failure moves on to the next provider
             tried.append({"provider": provider, "result": failure_type(exc)})
             continue
@@ -53,7 +81,63 @@ def suggest_related(specialty, liked_topic, current_topics, candidates, tried=No
             continue
         tried.append({"provider": provider, "result": "ok"})
         return topics, provider
-    return list(FALLBACK), "fallback"
+    return None, None
+
+
+# ---------- Redis cache ----------
+
+def cache_key(specialty, liked_topic, current_topics, candidates, models):
+    parts = {
+        "specialty": specialty,
+        "liked_topic": liked_topic,
+        "current_topics": sorted(current_topics),
+        "candidates": sorted(candidates),
+        "models": models,
+        "prompt_version": PROMPT_VERSION,
+    }
+    return CACHE_PREFIX + hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest()
+
+
+def redis_client():
+    """The client for the current REDIS_URL, or None if it isn't set."""
+    url = os.getenv("REDIS_URL")
+    if not url:
+        return None
+    if url not in REDIS_CLIENTS:
+        REDIS_CLIENTS[url] = redis.Redis.from_url(
+            url,
+            decode_responses=True,
+            socket_timeout=REDIS_TIMEOUT_SECONDS,
+            socket_connect_timeout=REDIS_TIMEOUT_SECONDS,
+            retry=Retry(NoBackoff(), 0),  # no retries, so one call stays within the timeout
+        )
+    return REDIS_CLIENTS[url]
+
+
+def cache_get(key, candidates):
+    """Return (topics or None, lookup), where lookup is hit, miss, unreachable, or None when
+    REDIS_URL isn't set. Cached topics are re-validated against today's candidates."""
+    client = redis_client()
+    if client is None:
+        return None, None
+    try:
+        value = client.get(key)
+    except Exception:  # unreachable or erroring Redis is skipped
+        return None, "unreachable"
+    try:
+        return parse_topics(value, candidates), "hit"
+    except ValueError:  # nothing cached, or no longer valid for today's candidates
+        return None, "miss"
+
+
+def cache_set(key, topics):
+    client = redis_client()
+    if client is None:
+        return
+    try:
+        client.set(key, json.dumps(topics), ex=CACHE_TTL_SECONDS)
+    except Exception:  # a failed write only means the next call asks the providers again
+        pass
 
 
 def build_prompt(specialty, liked_topic, current_topics, candidates):
