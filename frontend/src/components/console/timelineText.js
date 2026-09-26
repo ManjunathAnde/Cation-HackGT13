@@ -9,6 +9,7 @@ export function clockTime(seconds) {
 const BY_LABELS = { redis: "cache (Redis)", gemini: "Gemini", groq: "Groq", fallback: "fixed fallback" };
 const REPLY_LABELS = { yes: "Yes, more on this", not_interested: "Not interested", no_reply: "No reply" };
 const ANSWER_LABELS = { yes: "Yes", no: "No thanks" };
+const SENT_LABELS = { auto: "Sent automatically", manual: "Sent by operator" };
 
 // Card titles by id, from card_sent events, so replies can name the card.
 export function cardTitles(timeline) {
@@ -26,7 +27,7 @@ export function describe(event, titles) {
     case "onboarded":
       return { text: `Onboarded — topics: ${Object.keys(event.topics || {}).map(topicLabel).join(", ")}`, tone: "plain" };
     case "card_sent":
-      return { text: `Sent: ${event.title} (for ${topicLabel(event.topic)}) — ${event.reason}`, tone: "plain" };
+      return { text: `${SENT_LABELS[event.trigger] || "Sent"}: ${event.title} (for ${topicLabel(event.topic)}) — ${event.reason}`, tone: "plain" };
     case "card_blocked":
       return { text: `Blocked card ${event.card}: ${event.reason}`, tone: "blocked" };
     case "reply":

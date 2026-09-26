@@ -4,6 +4,7 @@ Doctor state and the event log are kept in memory only and reset on restart.
 """
 
 import json
+import os
 import time
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
@@ -94,7 +95,9 @@ def onboard(doctor_id, name, specialty, conditions, interests, frequency):
         "vault": [],
     }
     log(doctor_id, "onboarded", topics=dict(DOCTORS[doctor_id]["topics"]))
-    return profile(doctor_id)
+    result = profile(doctor_id)
+    auto_send(DOCTORS[doctor_id])
+    return result
 
 
 def get_doctor(doctor_id):
@@ -164,28 +167,55 @@ def pick_order(doctor):
                 yield card, topic
 
 
-def next_card(doctor_id):
-    doctor = get_doctor(doctor_id)
+def waiting_reason(doctor):
+    """Why nothing can be sent right now, or None."""
     if doctor["last_card_id"] and doctor["last_card_id"] not in doctor["answered"]:
-        raise BadRequest("Doctor has an unanswered card")
+        return "Doctor has an unanswered card"
     if doctor["pending_offer"]:
-        raise BadRequest("Doctor has a pending topic offer")
+        return "Doctor has a pending topic offer"
+    return None
+
+
+def next_card(doctor_id):
+    """POST /send: the operator's manual send."""
+    doctor = get_doctor(doctor_id)
+    reason = waiting_reason(doctor)
+    if reason:
+        raise BadRequest(reason)
+    return pick_and_send(doctor, "manual")
+
+
+def pick_and_send(doctor, trigger):
+    """Send the first picked card that passes the guard; blocked cards are logged. None if no card is left."""
     for card, topic in pick_order(doctor):
         passed, reason = guard(card)
         if not passed:
             doctor["blocked"].append(card["id"])
-            log(doctor_id, "card_blocked", card=card["id"], reason=reason)
+            log(doctor["id"], "card_blocked", card=card["id"], reason=reason)
             continue
-        send(doctor, card, topic, reason)
+        send(doctor, card, topic, reason, trigger)
         return dict(card)
     return None
 
 
-def send(doctor, card, topic, reason):
+def send(doctor, card, topic, reason, trigger):
     doctor["sent"].append(card["id"])
     doctor["last_picked"][topic] = len(doctor["sent"])
     doctor["last_card_id"] = card["id"]
-    log(doctor["id"], "card_sent", card=card["id"], title=card["title"], topic=topic, reason=reason)
+    log(doctor["id"], "card_sent", card=card["id"], title=card["title"], topic=topic, reason=reason, trigger=trigger)
+
+
+# ---------- automatic sending ----------
+
+def auto_send_on():
+    """AUTO_SEND=off turns automatic sending off; unset or any other value means on."""
+    return os.getenv("AUTO_SEND", "on").strip().lower() != "off"
+
+
+def auto_send(doctor):
+    """After onboarding and each answer: send the next card, unless something is still waiting."""
+    if auto_send_on() and waiting_reason(doctor) is None:
+        pick_and_send(doctor, "auto")
 
 
 # ---------- scorer ----------
@@ -205,7 +235,9 @@ def reply(doctor_id, card_id, answer):
     if answer == "yes" and card_id not in doctor["vault"]:
         doctor["vault"].append(card_id)
     offer = explore(doctor, card)
-    return {"offer": offer, "ion": ion(doctor)}
+    result = {"offer": offer, "ion": ion(doctor)}
+    auto_send(doctor)  # skipped while the offer is pending
+    return result
 
 
 def update_scores(doctor, card, answer):
@@ -270,13 +302,15 @@ def topic_reply(doctor_id, topic, answer):
         doctor["topics"][topic] = 1
         doctor["added"].append(topic)
     log(doctor_id, "topic_answer", topic=topic, answer=answer)
-    return {"ion": ion(doctor)}
+    result = {"ion": ion(doctor)}
+    auto_send(doctor)
+    return result
 
 
 # ---------- mock ION ----------
 
 def ion(doctor):
-    if not doctor["sent"]:
+    if not doctor["answered"]:  # until the first card reply
         return {"pick": f"General update for {doctor['specialty']}", "why": "specialty only"}
     ranked = rank_topics(doctor)
     if not ranked:

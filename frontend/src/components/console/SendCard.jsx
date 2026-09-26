@@ -36,8 +36,9 @@ export default function SendCard({ inbox, onSent }) {
   }
 
   return (
-    <Panel className="send-card" aria-label="Send card">
-      <h2 className="console-panel-title">Send card</h2>
+    <Panel className="send-card" aria-label="Send next card (manual override)">
+      <h2 className="console-panel-title">Send next card (manual override)</h2>
+      <p className="send-card__hint">Cards are sent automatically after each answer.</p>
       <p className={`send-card__status${waiting ? " send-card__status--waiting" : ""}`} role="status">
         {statusLine(inbox)}
       </p>

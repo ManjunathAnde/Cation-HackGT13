@@ -3,9 +3,9 @@
 Each checkpoint is a small, working step. A checkpoint is **done** only when its test passes and its
 notes are written.
 
-**Build order:** 1–5 → 10a → 10b → 6 → 7 → 8 → 9 → 12. Checkpoints keep their numbers; sections
+**Build order:** 1–5 → 10a → 10b → 6 → 7 → 8 → 9 → 11 → 12. Checkpoints keep their numbers; sections
 below follow the build order. Checkpoint 7 (Impiricus console) absorbed the metrics page and the mock
-ION panel; 8 is the Brief and 9 the Vault; Checkpoint 11 no longer exists as a separate step.
+ION panel; 8 is the Brief and 9 the Vault; 11 is now automatic sending.
 
 ## Process rules
 
@@ -132,6 +132,18 @@ reflects the reply. Earlier messages stay visible.
 
 **Test:** after the path, vault shows 2 saved items; search "kidney" finds them; search "xyz" finds none.
 **Document:** screenshot. ← **MVP complete here.**
+
+## Checkpoint 11 — Automatic sending
+**Goal:** after onboarding and after each answer the backend sends the next card itself (blueprint
+§7.8), so the doctor never waits for the operator. `AUTO_SEND=on|off` (default on); `card_sent` events
+carry `trigger` (`auto` / `manual`); `/send` stays as the manual override. ION stays general until the
+first card reply (§7.6). Picker, guard, scoring and explorer rules unchanged; API responses unchanged.
+
+**Test:** from `backend/`, `python -m app.demo_run` with `AUTO_SEND=on` and with `AUTO_SEND=off` →
+`DEMO PATH OK` both times; `python -m app.api_check` against a server with `LLM_MODE=off`, once with
+`AUTO_SEND=on` and once with `AUTO_SEND=off` → `API PATH OK` both times; `npm run build` succeeds.
+By hand: Reset demo → the label card is already on the phone; each answer brings the next card; the
+console timeline says "Sent automatically".
 
 ## Checkpoint 12 — Demo freeze
 **Goal:** nothing new, only reliability.

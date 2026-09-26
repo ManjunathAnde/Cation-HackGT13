@@ -113,7 +113,7 @@ Every event: `t` (epoch seconds, float), `type`, `doctor`, plus the details belo
 | type | details |
 | --- | --- |
 | onboarded | topics |
-| card_sent | card, title, topic (the topic it was picked for), reason (guard pass reason) |
+| card_sent | card, title, topic (the topic it was picked for), reason (guard pass reason), trigger (`auto` or `manual`, §7.8) |
 | card_blocked | card, reason |
 | reply | card, answer, scores (after update) |
 | topic_muted | topic |
@@ -221,7 +221,8 @@ Candidates exclude cards already sent or blocked.
 - `/topic-reply` yes → topic added at score 1 and to `added`; either answer clears `pending_offer`.
 
 ### 7.6 Mock ION
-- No card sent yet → pick `General update for <specialty>`, why `specialty only`.
+- No card reply yet (`/reply`; topic-offer answers don't count) → pick `General update for <specialty>`,
+  why `specialty only`. This holds while the first card is waiting.
 - Otherwise → pick `<top topic> content`, why `top score N from replies`, where top topic is the
   first topic in the §7.3 step 2 ranking and N is formatted without a trailing `.0` (3, 1.75).
 - No unmuted topics → pick `No active topics`, why `all topics muted`.
@@ -234,6 +235,20 @@ Candidates exclude cards already sent or blocked.
   clipped 0–100, rounded to an integer. Rates are reported rounded to 2 decimals.
   All rounding is half up (72.5 → 73).
 - Also: topics_added, muted count, saved count, current scores, full timeline (all events, in order).
+
+### 7.8 Automatic sending (Checkpoint 11)
+- Setting `AUTO_SEND` in `backend/.env`: `on` | `off`; unset → `on` (any value other than `off` is on).
+- When on, the backend sends the next card itself, synchronously inside the handler, after the
+  response has been computed (responses are unchanged):
+  - `/onboard`: after the doctor is created → first card.
+  - `/reply`: after scoring and the explorer → next card, only if no topic offer is pending.
+  - `/topic-reply`: after the answer is recorded → next card.
+- Sending uses the same picker and guard as `/send` (§7.3–7.4). Nothing is sent while a card or an
+  offer is waiting; if the picker returns no card, nothing is sent (no error).
+- `card_sent` events carry `trigger`: `auto` (sent by the handlers above) or `manual` (`/send`),
+  in both modes. No other event changes.
+- `/send` stays as the operator's manual override with its current rules (400 while a card or offer
+  is waiting). With `AUTO_SEND=off`, behavior is as before Checkpoint 11.
 
 ---
 
@@ -305,6 +320,11 @@ Errors:
 - `/topic-reply`: `topic` ≠ `pending_offer` → 400
 - `/send`: doctor has an unanswered card or a pending topic offer → 400
 
+**Automatic sending (§7.8).** With `AUTO_SEND` on (the default), `/onboard`, `/reply` (unless an offer
+is now pending) and `/topic-reply` also send the next card before returning; their response bodies
+are unchanged. `/send` is the operator's manual override. The `trigger` field appears only in the
+event log (`card_sent` in `/events` and the `/metrics` timeline), never in other responses.
+
 **Inbox messages.** `messages` is the doctor's full thread in order, built from the event log
 (`card_sent`, `reply`, `topic_offered`, `topic_answer`); blocked cards and blocked topics are not shown.
 - Card: `{ "type": "card", "t": <epoch s>, "card": Card, "answer": "yes" | "not_interested" | "no_reply" | null }`
@@ -346,6 +366,12 @@ interests `ozempic safety`; frequency `weekly`.
 
 The values above hold with `LLM_MODE=off`. With `LLM_MODE=live` the step-3 offer and block come
 from the LLM and may differ.
+
+**Auto path (`AUTO_SEND=on`, §7.8).** Same cards, same order, same values, with no send steps:
+onboarding sends the label card; each reply sends the next card, except after step 3 (the offer is
+pending); accepting the offer in step 4 sends the next kidney study (`pm-42337824`), which is left
+waiting at the end (it does not affect the metrics). ION stays `General update for endocrinology`
+until the step-1 reply. With `AUTO_SEND=off`, the operator sends each card with `/send`.
 
 ---
 
