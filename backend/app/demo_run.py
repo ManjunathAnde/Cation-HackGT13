@@ -52,7 +52,16 @@ def event_of(timeline, event_type, **match):
     ]
 
 
+def first_card(kind, topic):
+    """The first card in cache order with this kind and topic."""
+    return next(card for card in core.CARDS if card["kind"] == kind and topic in card["topics"])
+
+
 def main():
+    label_card = first_card("label", "kidney outcomes")
+    safety_study = first_card("study", "ozempic safety")
+    kidney_study = first_card("study", "kidney outcomes")
+
     core.onboard(
         doctor_id=DOCTOR,
         name="Dr. Patel",
@@ -77,14 +86,14 @@ def main():
     assert step0["topics"] == {"glycemic control": 1, "kidney outcomes": 1, "ozempic safety": 1}
     assert step0["ion"] == {"pick": "General update for endocrinology", "why": "specialty only"}
     # Step 1: label card, picked for kidney outcomes → yes
-    assert card1["id"] == "label-ozempic-ckd"
+    assert card1["id"] == label_card["id"]
     assert event_of(timeline, "card_sent", card=card1["id"], topic="kidney outcomes", reason="Claims match label")
     assert step1["topics"] == {"glycemic control": 1, "kidney outcomes": 2, "ozempic safety": 2}
     # Step 2: safety study (never-picked tie-break) → not_interested
-    assert card2["id"] == "pm-placeholder-safety-1"
+    assert card2["id"] == safety_study["id"]
     assert step2["topics"]["ozempic safety"] == 1
     # Step 3: kidney study → yes; offer and block
-    assert card3["id"] == "pm-placeholder-kidney-1"
+    assert card3["id"] == kidney_study["id"]
     assert step3["topics"]["kidney outcomes"] == 3
     assert reply3["offer"] == "cardio-kidney-metabolic care"
     assert event_of(
@@ -95,7 +104,7 @@ def main():
     assert step4["topics"]["cardio-kidney-metabolic care"] == 1
     assert step4["ion"] == {"pick": "kidney outcomes content", "why": "top score 3 from replies"}
     # End: metrics and vault
-    assert [card["id"] for card in vault] == ["label-ozempic-ckd", "pm-placeholder-kidney-1"]
+    assert [card["id"] for card in vault] == [label_card["id"], kidney_study["id"]]
     assert metrics["engagement_score"] == 72
     assert metrics["reply_rate"] == 1.0
     assert metrics["yes_rate"] == 0.67

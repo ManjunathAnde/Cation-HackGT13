@@ -53,7 +53,8 @@ and ends with plain `assert` checks on every §12 value, printing `DEMO PATH OK`
 **Goal:** replace placeholders with real, verified content.
 - [ ] Verbatim Ozempic kidney-indication sentence from DailyMed pasted into `cache.json` (label card
       `claims`) and `label.json`, replacing the PLACEHOLDER sentence
-- [ ] `python -m app.fetch_cache` run (email set); titles reviewed; 1–2 good studies kept per topic
+- [ ] `python -m app.fetch_label` and `python -m app.fetch_studies` run (email set); titles reviewed;
+      1–2 good studies kept per topic
 
 **Test:** `demo_run` still follows the same path with real titles; guard says "Claims match label."
 Change one character in the label claim → guard blocks it → change it back.

@@ -2,51 +2,88 @@
   "cards": [
     {
       "id": "label-ozempic-ckd",
-      "title": "PLACEHOLDER: label card for kidney outcomes",
-      "summary": "PLACEHOLDER summary",
+      "title": "Ozempic label: kidney outcomes indication",
+      "summary": "Indications and Usage section of the current FDA-approved Ozempic label.",
       "source": "DailyMed",
-      "link": "https://dailymed.nlm.nih.gov/",
-      "topics": ["kidney outcomes", "ozempic safety"],
-      "claims": ["PLACEHOLDER: verbatim DailyMed Indications sentence"],
+      "link": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=adec4fd2-6858-4c99-91d4-531f5f2a2d79",
+      "topics": [
+        "kidney outcomes",
+        "ozempic safety"
+      ],
+      "claims": [
+        "to reduce the risk of sustained eGFR decline, end-stage kidney disease, and cardiovascular death in adults with type 2 diabetes mellitus and chronic kidney disease."
+      ],
       "kind": "label"
     },
     {
-      "id": "pm-placeholder-safety-1",
-      "title": "PLACEHOLDER: study card for ozempic safety",
-      "summary": "PLACEHOLDER summary",
+      "id": "pm-42594084",
+      "title": "Gastroparesis induced by glucagon-like peptide-1 receptor agonists: A systematic review of clinical features, diagnosis, management, and outcomes.",
+      "summary": "PloS one, 2026",
       "source": "PubMed",
-      "link": "https://pubmed.ncbi.nlm.nih.gov/",
-      "topics": ["ozempic safety"],
+      "link": "https://pubmed.ncbi.nlm.nih.gov/42594084/",
+      "topics": [
+        "ozempic safety"
+      ],
       "claims": [],
       "kind": "study"
     },
     {
-      "id": "pm-placeholder-kidney-1",
-      "title": "PLACEHOLDER: study card for kidney outcomes",
-      "summary": "PLACEHOLDER summary",
+      "id": "pm-39964295",
+      "title": "Evaluating bowel obstruction and ileus events in patients on GLP-1 receptor agonists: a systematic review and meta-analysis.",
+      "summary": "Expert opinion on drug safety, 2026 Jun",
       "source": "PubMed",
-      "link": "https://pubmed.ncbi.nlm.nih.gov/",
-      "topics": ["kidney outcomes"],
+      "link": "https://pubmed.ncbi.nlm.nih.gov/39964295/",
+      "topics": [
+        "ozempic safety"
+      ],
       "claims": [],
       "kind": "study"
     },
     {
-      "id": "pm-placeholder-ckm-1",
-      "title": "PLACEHOLDER: study card for cardio-kidney-metabolic care",
-      "summary": "PLACEHOLDER summary",
+      "id": "pm-41644273",
+      "title": "Cardiorenal protective effects of glucagon-like peptide-1 receptor agonists in chronic kidney disease: a systematic review and meta-analysis.",
+      "summary": "Renal failure, 2026 Dec",
       "source": "PubMed",
-      "link": "https://pubmed.ncbi.nlm.nih.gov/",
-      "topics": ["cardio-kidney-metabolic care"],
+      "link": "https://pubmed.ncbi.nlm.nih.gov/41644273/",
+      "topics": [
+        "kidney outcomes"
+      ],
       "claims": [],
       "kind": "study"
     },
     {
-      "id": "pm-placeholder-glycemic-1",
-      "title": "PLACEHOLDER: study card for glycemic control",
-      "summary": "PLACEHOLDER summary",
+      "id": "pm-42337824",
+      "title": "Efficacy and Safety of GLP-1 Receptor Agonists on Combined Cardiovascular and Renal Outcomes in Patients With Chronic Kidney Disease: A Systematic Review and Meta-Analysis.",
+      "summary": "Diabetes, obesity & metabolism, 2026 Sep",
       "source": "PubMed",
-      "link": "https://pubmed.ncbi.nlm.nih.gov/",
-      "topics": ["glycemic control"],
+      "link": "https://pubmed.ncbi.nlm.nih.gov/42337824/",
+      "topics": [
+        "kidney outcomes"
+      ],
+      "claims": [],
+      "kind": "study"
+    },
+    {
+      "id": "pm-42233552",
+      "title": "Kidney and Survival Benefits of Semaglutide in Diabetes With Chronic Kidney Disease: FLOW Trial Cardiovascular Subgroup Analyses.",
+      "summary": "Journal of the American College of Cardiology, 2026 Jun 2",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/42233552/",
+      "topics": [
+        "cardio-kidney-metabolic care"
+      ],
+      "claims": [],
+      "kind": "study"
+    },
+    {
+      "id": "pm-39532398",
+      "title": "De-intensification of basal-bolus therapy by replacing prandial insulin with once-weekly subcutaneous semaglutide in individuals with well-controlled type 2 diabetes: A single-centre, open-label randomised trial (TRANSITION-T2D).",
+      "summary": "Diabetes, obesity & metabolism, 2025 Feb",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/39532398/",
+      "topics": [
+        "glycemic control"
+      ],
       "claims": [],
       "kind": "study"
     }

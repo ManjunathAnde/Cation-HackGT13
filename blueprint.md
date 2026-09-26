@@ -105,7 +105,7 @@ No age, contact details, or patient information is collected.
 ```
 - `claims`: clinical sentences; must match the label (§7.4). Studies always have `claims: []`.
 - Studies have exactly one topic: the topic whose MeSH query found them.
-- `summary`: one neutral line; for studies, written from the title only.
+- `summary`: one neutral line; for studies, `<journal>, <publication date>`.
 
 ### 5.3 Event
 Every event: `t` (epoch seconds, float), `type`, `doctor`, plus the details below.
@@ -254,9 +254,13 @@ Candidates exclude cards already sent or blocked.
 | DailyMed (NIH) | Ozempic label: label card + guard sentences | Copied manually into `label.json` and the label card |
 | PubMed E-utilities (NIH) | Study cards by MeSH topic | Offline script → `cache.json` |
 
-PubMed rules: filters `(randomized controlled trial[pt] OR systematic review[pt] OR meta-analysis[pt])
-AND humans[MeSH]`, last 2 years; include `tool` and `email` parameters; ≤ 3 requests/second;
-store title, journal, date, and link only — never abstracts.
+PubMed rules: query `(<§6 MeSH query>) AND semaglutide AND (randomized controlled trial[pt] OR
+systematic review[pt] OR meta-analysis[pt]) AND humans[MeSH]`, last 2 years; include `tool` and `email`
+parameters; ≤ 3 requests/second; store title, journal, date, and link only — never abstracts.
+
+Selection rule: Studies are chosen by a human from the fetch output. Keep only studies about
+semaglutide or the GLP-1 receptor agonist class in adults with type 2 diabetes, including those with
+cardiovascular or kidney disease. Exclude other drugs, type 1 diabetes, and non-diabetic obesity populations.
 
 ---
 
@@ -324,11 +328,14 @@ interests `ozempic safety`; frequency `weekly`.
 - Frontend: react, react-dom, vite, @vitejs/plugin-react
 
 Anything else requires approval. Tests use plain `assert` scripts (no pytest).
+The offline fetch scripts use `urllib` from the standard library instead of httpx.
 
 ---
 
 ## 14. Open Items
 
-- [ ] Verbatim Ozempic kidney-indication sentence from DailyMed (Checkpoint 4)
-- [ ] Real PubMed studies for the demo path (Checkpoint 4)
+- [x] Verbatim Ozempic kidney-indication sentence from DailyMed (Checkpoint 4): label set ID
+      `adec4fd2-6858-4c99-91d4-531f5f2a2d79`, version 20, effective 2026-06-01
+- [x] Real PubMed studies for the demo path (Checkpoint 4): PMIDs 42594084, 39964295, 41644273,
+      42337824, 42233552, 39532398
 - [ ] Gemini and Groq model names confirmed against current provider lists (Checkpoint 10)
