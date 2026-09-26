@@ -14,8 +14,8 @@ notes are written.
 
 | Must (demo fails without it) | Should (strong demo) | Could (only if ahead) |
 | --- | --- | --- |
-| Onboarding → cards → replies → scores | Live Gemini/Groq explorer | Real RCS on an Android phone |
-| RCS mockup with Yes / Not interested | Mock ION panel changing its pick | ClinicalTrials.gov cards |
+| Onboarding → cards → replies → scores | Live Gemini/Groq explorer | ClinicalTrials.gov cards |
+| Phone page thread with Yes / Not interested | Mock ION panel changing its pick | |
 | Real DailyMed label + real PubMed studies (cached) | Score line chart (needs approval) | Other 4 doctors + brand view |
 | Vault with search | Guard block shown once | Deployment to a public URL |
 | Metrics: timeline, scores, engagement score | Weight-management block shown | |
@@ -63,9 +63,11 @@ Change one character in the label claim → guard blocks it → change it back.
 ## Checkpoint 5 — API
 **Goal:** every step works over HTTP.
 
-**Test:** in `http://localhost:8000/docs`: POST /onboard → (GET /next-card → POST /reply) ×3 →
-POST /topic-reply (yes) → GET /metrics shows score 72 → GET /vault?q=kidney returns 2 items.
-Error cases: unknown doctor → 404; replying to a card twice → 400.
+**Test:** in `http://localhost:8000/docs`: POST /onboard → (POST /send → POST /reply) ×3 →
+POST /topic-reply (yes) → GET /metrics shows score 72 → GET /vault?q=kidney returns 2 items →
+GET /inbox returns the full thread (3 answered cards + 1 answered offer, `active` null).
+Error cases: unknown doctor → 404; replying to a card twice → 400; POST /send while a card is
+unanswered → 400.
 **Document:** example request/response for /reply in README.
 
 ## Checkpoint 6 — Doctor portal: onboarding
@@ -74,11 +76,14 @@ Error cases: unknown doctor → 404; replying to a card twice → 400.
 **Test:** fill the form → GET /profile/dr_patel shows the three starting topics at 1.
 **Document:** screenshot.
 
-## Checkpoint 7 — RCS mockup
-**Goal:** cards arrive in a phone-shaped UI; buttons drive the loop.
+## Checkpoint 7 — Phone page
+**Goal:** cards arrive as a conversation thread on a phone-shaped page; buttons drive the loop.
+The operator view has only the "Send next card" button here; the metrics and ION panels join it
+in Checkpoints 9 and 11.
 
-**Test:** tap through all three cards and the expansion offer from the UI; scores and ION pick
-change after each tap.
+**Test:** operator clicks Send → the card appears at the bottom of the phone thread within 2 seconds →
+tapping a button shows the reply under that card and disables its buttons; GET /metrics/dr_patel
+reflects the reply. Earlier messages stay visible.
 **Document:** screenshot of each card; short screen recording (backup for the demo video).
 
 ## Checkpoint 8 — Vault
@@ -99,14 +104,6 @@ Remove both → `by: cache`. Demo path unchanged in all three.
 **Test:** panel shows "General update for endocrinology (specialty only)" before any taps and
 "kidney outcomes content (top score 3 from replies)" after the path.
 **Document:** screenshot for the pitch slide.
-
-## Parallel track — Real RCS (friend, 2-hour timebox)
-- **R1:** agent created, test Android phone accepted tester invite
-- **R2:** one rich card with two buttons arrives on the phone
-- **R3:** tapping a button reaches the backend through the webhook and calls the same reply logic
-
-**Test:** tap "Yes" on the phone → metrics page timeline shows the reply.
-**If stalled at the timebox:** stop; demo with the mockup.
 
 ## Checkpoint 12 — Demo freeze
 **Goal:** nothing new, only reliability.

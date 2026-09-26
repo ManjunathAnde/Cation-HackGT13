@@ -13,7 +13,7 @@ a message, the system learns nothing about why. Doctors tune out, and the engage
 
 **Solution.** Cation is an agent beside ION that:
 1. Starts from a doctor's stated profile (specialty, practice conditions, interests)
-2. Sends research cards over RCS with two buttons: "Yes, more on this" / "Not interested"
+2. Sends research cards to a phone web page with two buttons: "Yes, more on this" / "Not interested"
 3. Updates per-topic scores from every reply
 4. Finds new research on topics the doctor likes and proposes related topics
 5. Blocks anything not supported by the drug's FDA label
@@ -26,15 +26,15 @@ is validated before use.
 
 ## 2. Scope
 
-**In scope (MVP):** one doctor (Dr. Patel), one drug (Ozempic), onboarding, RCS mockup,
+**In scope (MVP):** one doctor (Dr. Patel), one drug (Ozempic), onboarding, phone page,
 intelligence loop, vault, metrics page, simulated ION panel.
 
 **Out of scope:** real ION integration, real patient data, authentication, databases,
 deployment, additional doctors or drugs, brand-level aggregate view, score chart (needs approval),
 persistence of doctor state to disk, billing, inventory.
 
-**Separate track (teammate-owned):** real RCS delivery via Google RCS for Business test mode.
-It must call the same reply logic as the mockup (see §10).
+Delivery is simulated by a phone web page. The card format stays compatible with RCS rich cards
+for future use.
 
 ---
 
@@ -272,7 +272,8 @@ All request/response bodies use Pydantic models with examples (visible in Swagge
 | --- | --- | --- | --- |
 | GET | /health | — | `{ ok: true }` |
 | POST | /onboard | id, name, specialty, conditions, interests, frequency | public profile (§5.1) |
-| GET | /next-card/{doctor_id} | — | `{ card: Card \| null }` |
+| POST | /send/{doctor_id} | — | `{ card: Card \| null }` — runs the picker and guard (§7.3–7.4) and sends the next card |
+| GET | /inbox/{doctor_id} | — | `{ messages: Message[], active: Message \| null }` — no side effects |
 | POST | /reply | `{ doctor_id, card_id, answer }` answer ∈ yes, not_interested, no_reply | `{ offer: string \| null, ion: {pick, why} }` |
 | POST | /topic-reply | `{ doctor_id, topic, answer }` answer ∈ yes, no | `{ ion: {pick, why} }` |
 | GET | /vault/{doctor_id}?q= | — | Card[] in save order; `q` = case-insensitive substring match on title or any topic |
@@ -285,10 +286,15 @@ Errors:
 - `/onboard` validation failure (§7.1) → 422
 - `/reply`: `card_id` ≠ `last_card_id`, or already answered → 400
 - `/topic-reply`: `topic` ≠ `pending_offer` → 400
+- `/send`: doctor has an unanswered card or a pending topic offer → 400
 
-**RCS webhook (separate track):** maps the sender's phone number to a doctor id and the button
-text to an answer ("Yes, more on this" → `yes`, "Not interested" → `not_interested`,
-"Yes" → topic `yes`, "No thanks" → topic `no`), then calls the same logic as `/reply` or `/topic-reply`.
+**Inbox messages.** `messages` is the doctor's full thread in order, built from the event log
+(`card_sent`, `reply`, `topic_offered`, `topic_answer`); blocked cards and blocked topics are not shown.
+- Card: `{ "type": "card", "t": <epoch s>, "card": Card, "answer": "yes" | "not_interested" | "no_reply" | null }`
+- Offer: `{ "type": "offer", "t": <epoch s>, "topic": string, "answer": "yes" | "no" | null }`
+
+`answer` is `null` until the doctor replies. `active` is the one message that still needs a reply
+(the unanswered card or the pending offer), or `null`.
 
 ---
 
@@ -299,7 +305,8 @@ API base URL from `VITE_API_URL`, default `http://localhost:8000`.
 | Page | Shows | Calls |
 | --- | --- | --- |
 | Onboarding | Form: name, specialty, practice conditions, interests, frequency. Note: "practice-level only, no patient details" | /onboard |
-| RCS phone | Phone-shaped card: title, summary, source, "Read source" link, two buttons; expansion offers as Yes / No thanks | /next-card, /reply, /topic-reply |
+| Phone page (`/phone`) | Phone-shaped, scrollable conversation thread; polls `/inbox` every 2 seconds; newest message at the bottom. Each card shows title, summary, source, and a "Read source" link. Answered items show the doctor's reply; only the active item has buttons ("Yes, more on this" / "Not interested" for cards, Yes / No thanks for offers) | /inbox, /reply, /topic-reply |
+| Operator view | "Send next card" button, plus the metrics and ION panel | /send |
 | Vault | Saved cards with a search box | /vault |
 | Metrics | Timeline, topic scores, engagement score, reply rate, yes rate, topics added, saved | /metrics |
 | ION panel | Current pick and why (labeled "simulated") | /profile |
@@ -339,3 +346,6 @@ The offline fetch scripts use `urllib` from the standard library instead of http
 - [x] Real PubMed studies for the demo path (Checkpoint 4): PMIDs 42594084, 39964295, 41644273,
       42337824, 42233552, 39532398
 - [ ] Gemini and Groq model names confirmed against current provider lists (Checkpoint 10)
+- [ ] Run the frontend on the local network so a phone can open /phone: `VITE_API_URL` points to the
+      laptop's local IP, both servers listen on the network interface (not only localhost), and CORS
+      allows the frontend's local-network origin.
