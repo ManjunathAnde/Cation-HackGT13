@@ -48,6 +48,22 @@
   --highlight-bg: #e4f6ea;
   --radius-panel: 18px;
 
+  /* Doctor's brief, sampled from docs/design/drmessage.jpeg */
+  --action: #18673a;
+  --action-text: #ffffff;
+  --action-disabled: #99b6a0;
+  --action-disabled-text: #f8fffa;
+  --choice-no-bg: #eef0ed;
+  --choice-no-disabled: #f7f7f5;
+  --choice-no-disabled-ink: #8e8f8d;
+  --bubble-caption: #9fd4b4;
+  --border-soft: #edefec;
+  --pill-bg: #e7f1fa;
+  --tab-border: #e3e3e3;
+  --tab-active-bg: #e8f2ea;
+  --tab-box: #7f7f7f;
+  --radius-message: 22px;
+
   --font-sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-serif: Georgia, "Times New Roman", serif;
 

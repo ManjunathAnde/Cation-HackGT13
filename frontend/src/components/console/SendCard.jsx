@@ -2,7 +2,7 @@ import { useState } from "react";
 import { api, DOCTOR_ID } from "../../api.js";
 import Panel from "../ui/Panel.jsx";
 import PrimaryButton from "../ui/PrimaryButton.jsx";
-import { topicLabel } from "./timelineText.js";
+import { topicLabel } from "../../format.js";
 
 function statusLine(inbox) {
   if (!inbox) return "Checking…";

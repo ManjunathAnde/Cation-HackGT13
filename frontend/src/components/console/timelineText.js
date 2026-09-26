@@ -1,8 +1,5 @@
 // Display text for the console. Formatting only; the backend decides everything.
-
-export function topicLabel(topic) {
-  return topic ? topic.charAt(0).toUpperCase() + topic.slice(1) : "";
-}
+import { topicLabel } from "../../format.js";
 
 export function clockTime(seconds) {
   const date = new Date(seconds * 1000);

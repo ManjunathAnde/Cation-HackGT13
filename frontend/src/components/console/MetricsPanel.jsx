@@ -4,7 +4,7 @@ import RingGauge from "../ui/RingGauge.jsx";
 import SerifHeading from "../ui/SerifHeading.jsx";
 import StatCard from "../ui/StatCard.jsx";
 import Tag from "../ui/Tag.jsx";
-import { topicLabel } from "./timelineText.js";
+import { topicLabel } from "../../format.js";
 
 const MUTE_AT = -2;
 

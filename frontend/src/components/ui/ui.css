@@ -448,3 +448,105 @@
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
+
+/* Phone column with a bottom tab bar: content grows, tab bar sits at the bottom */
+.phone-column--tabs {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
+}
+
+/* Agent avatar: the wordmark tile in the action green */
+.agent-avatar {
+  flex: none;
+  background: var(--action);
+}
+
+/* Choice buttons (Yes / Not interested) */
+.choice-button {
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--radius-field);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.choice-button--yes {
+  background: var(--action);
+  color: var(--action-text);
+}
+.choice-button--no {
+  background: var(--choice-no-bg);
+  color: var(--ink);
+}
+.choice-button--yes:disabled {
+  background: var(--action-disabled);
+  color: var(--action-disabled-text);
+  cursor: default;
+}
+.choice-button--no:disabled {
+  background: var(--choice-no-disabled);
+  color: var(--choice-no-disabled-ink);
+  cursor: default;
+}
+.choice-button:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+}
+
+/* Bottom tab bar */
+.tab-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  margin: auto -21px 0;
+  padding: 10px 21px 14px;
+  border-top: 1px solid var(--tab-border);
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  background: var(--field);
+}
+.tab-bar__tab {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 0 10px;
+  border-radius: 14px;
+  color: var(--ink-subtle);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.tab-bar__box {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid var(--tab-box);
+  border-radius: 7px;
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 700;
+}
+.tab-bar__tab--active {
+  background: var(--tab-active-bg);
+  color: var(--brand-ink);
+}
+.tab-bar__tab--active .tab-bar__box {
+  border-color: var(--brand-ink);
+}
+.tab-bar__tab:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+}
+@media (max-width: 419px) {
+  .tab-bar {
+    border-radius: 0;
+  }
+}

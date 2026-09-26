@@ -4,11 +4,13 @@ import Brief from "./pages/Brief.jsx";
 import Console from "./pages/Console.jsx";
 import NotFound from "./pages/NotFound.jsx";
 import Onboard from "./pages/Onboard.jsx";
+import Vault from "./pages/Vault.jsx";
 
 const ROUTES = {
   "/console": Console,
   "/phone/onboard": Onboard,
   "/phone/brief": Brief,
+  "/phone/vault": Vault,
 };
 
 const REDIRECTS = {
