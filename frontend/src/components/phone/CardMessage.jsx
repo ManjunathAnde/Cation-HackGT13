@@ -1,17 +1,15 @@
 import { api, DOCTOR_ID } from "../../api.js";
-import { topicLabel } from "../../format.js";
 import AgentLine from "./AgentLine.jsx";
 import AnswerButtons from "./AnswerButtons.jsx";
 import ReplyBubble from "./ReplyBubble.jsx";
-
-const SOURCE_LABELS = { label: "FDA label · DailyMed", study: "Study · PubMed" };
+import ResearchCard from "./ResearchCard.jsx";
 
 const CARD_OPTIONS = [
   { answer: "yes", tone: "yes", label: "Yes, more on this" },
   { answer: "not_interested", tone: "no", label: "Not interested" },
 ];
 
-// One research card. Buttons only when `active` (the API's active item); the answer below when answered.
+// One research card in the Brief. Buttons only when `active` (the API's active item); the answer below when answered.
 export default function CardMessage({ message, active, onAnswered }) {
   const { card } = message;
 
@@ -22,33 +20,9 @@ export default function CardMessage({ message, active, onAnswered }) {
   return (
     <article className="message" data-card={card.id}>
       <AgentLine>I found this for your brief. Is it relevant to your practice?</AgentLine>
-      <div className="brief-card">
-        <div className="brief-card__meta">
-          <div className="brief-card__pills">
-            {card.topics.map((topic) => (
-              <span key={topic} className="topic-pill">
-                {topicLabel(topic)}
-              </span>
-            ))}
-          </div>
-          <span className="brief-card__source">{SOURCE_LABELS[card.kind]}</span>
-        </div>
-        <h2 className="brief-card__title">{card.title}</h2>
-        {card.kind === "label" &&
-          card.claims.map((claim) => (
-            <blockquote key={claim} className="brief-card__claim">
-              <span className="brief-card__claim-label">FDA label text</span>
-              <span className="brief-card__claim-text">{claim}</span>
-            </blockquote>
-          ))}
-        <div className="brief-card__footer">
-          <span className="brief-card__summary">{card.summary}</span>
-          <a className="brief-card__link" href={card.link} target="_blank" rel="noopener noreferrer">
-            Read source ↗
-          </a>
-        </div>
+      <ResearchCard card={card}>
         {active && <AnswerButtons options={CARD_OPTIONS} submit={submit} onDone={onAnswered} />}
-      </div>
+      </ResearchCard>
       {message.answer && <ReplyBubble type="card" answer={message.answer} />}
     </article>
   );
