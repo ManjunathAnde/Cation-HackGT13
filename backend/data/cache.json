@@ -1,0 +1,54 @@
+{
+  "cards": [
+    {
+      "id": "label-ozempic-ckd",
+      "title": "PLACEHOLDER: label card for kidney outcomes",
+      "summary": "PLACEHOLDER summary",
+      "source": "DailyMed",
+      "link": "https://dailymed.nlm.nih.gov/",
+      "topics": ["kidney outcomes", "ozempic safety"],
+      "claims": ["PLACEHOLDER: verbatim DailyMed Indications sentence"],
+      "kind": "label"
+    },
+    {
+      "id": "pm-placeholder-safety-1",
+      "title": "PLACEHOLDER: study card for ozempic safety",
+      "summary": "PLACEHOLDER summary",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/",
+      "topics": ["ozempic safety"],
+      "claims": [],
+      "kind": "study"
+    },
+    {
+      "id": "pm-placeholder-kidney-1",
+      "title": "PLACEHOLDER: study card for kidney outcomes",
+      "summary": "PLACEHOLDER summary",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/",
+      "topics": ["kidney outcomes"],
+      "claims": [],
+      "kind": "study"
+    },
+    {
+      "id": "pm-placeholder-ckm-1",
+      "title": "PLACEHOLDER: study card for cardio-kidney-metabolic care",
+      "summary": "PLACEHOLDER summary",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/",
+      "topics": ["cardio-kidney-metabolic care"],
+      "claims": [],
+      "kind": "study"
+    },
+    {
+      "id": "pm-placeholder-glycemic-1",
+      "title": "PLACEHOLDER: study card for glycemic control",
+      "summary": "PLACEHOLDER summary",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/",
+      "topics": ["glycemic control"],
+      "claims": [],
+      "kind": "study"
+    }
+  ]
+}

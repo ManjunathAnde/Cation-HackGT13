@@ -60,7 +60,7 @@ React (Vite) → FastAPI → core intelligence layer → in-memory doctor state
 - All decisions live in `backend/app/core.py`.
 - Doctor state lives in memory only and resets when the server restarts.
 - External APIs are called only by offline scripts that write the cache, never during a demo
-  request (except the explorer's LLM call from Checkpoint 10, which falls back to a fixed answer).
+  request (except the explorer's LLM call from Checkpoint 10, which falls back to cache).
 
 ---
 
