@@ -41,5 +41,5 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. It shows **backend connected ✓** if the backend is up,
-or **backend not running** if it isn't.
+Open http://localhost:5173 (it redirects to the Impiricus console at `/console`). The header shows
+**Backend connected** if the backend is up, or **Backend not running** if it isn't.

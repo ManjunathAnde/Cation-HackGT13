@@ -321,12 +321,12 @@ API base URL from `VITE_API_URL`, default `http://localhost:8000`.
 
 | Page | Shows | Calls |
 | --- | --- | --- |
-| Onboarding | Form: name, specialty, practice conditions, interests, frequency. Note: "practice-level only, no patient details" | /onboard |
-| Phone page (`/phone`) | Phone-shaped, scrollable conversation thread; polls `/inbox` every 2 seconds; newest message at the bottom. Each card shows title, summary, source, and a "Read source" link. Answered items show the doctor's reply; only the active item has buttons ("Yes, more on this" / "Not interested" for cards, Yes / No thanks for offers) | /inbox, /reply, /topic-reply |
-| Operator view | "Send next card" button, plus the metrics and ION panel | /send |
-| Vault | Saved cards with a search box | /vault |
-| Metrics | Timeline, topic scores, engagement score, reply rate, yes rate, topics added, saved | /metrics |
-| ION panel | Current pick and why (labeled "simulated") | /profile |
+| Onboarding (`/phone/onboard`) | Form: name, specialty, practice conditions, interests, frequency. Note: "practice-level only, no patient details" | /onboard |
+| Brief (`/phone/brief`; `/phone` redirects here) | Phone-shaped, scrollable conversation thread; polls `/inbox` every 2 seconds; newest message at the bottom. Each card shows title, summary, source, and a "Read source" link. Answered items show the doctor's reply; only the active item has buttons ("Yes, more on this" / "Not interested" for cards, Yes / No thanks for offers) | /inbox, /reply, /topic-reply |
+| Impiricus console (`/console`; `/` redirects here) | "Send next card" button, plus the metrics and ION panel below | /send |
+| Vault (`/phone/vault`) | Saved cards with a search box | /vault |
+| Metrics (section of the console) | Timeline, topic scores, engagement score, reply rate, yes rate, topics added, saved | /metrics |
+| ION panel (section of the console) | Current pick and why (labeled "simulated") | /profile |
 
 ---
 

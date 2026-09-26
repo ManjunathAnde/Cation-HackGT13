@@ -3,8 +3,9 @@
 Each checkpoint is a small, working step. A checkpoint is **done** only when its test passes and its
 notes are written.
 
-**Build order:** 1–5 → 10a → 10b → 6 → 7 → 8 → 9 → 11 → 12. Checkpoints keep their numbers; sections
-below follow the build order.
+**Build order:** 1–5 → 10a → 10b → 6 → 7 → 8 → 9 → 12. Checkpoints keep their numbers; sections
+below follow the build order. Checkpoint 7 (Impiricus console) absorbed the metrics page and the mock
+ION panel; 8 is the Brief and 9 the Vault; Checkpoint 11 no longer exists as a separate step.
 
 ## Process rules
 
@@ -40,8 +41,8 @@ below follow the build order.
 - [ ] Each person: venv + `pip install -r requirements.txt`, `npm install`
 - [ ] `backend/.env` created from `.env.example` (keys shared privately)
 
-**Test:** `http://localhost:8000/health` returns `{"ok": true}`; `http://localhost:5173` shows
-"backend connected ✓" — on every teammate's machine.
+**Test:** `http://localhost:8000/health` returns `{"ok": true}`; `http://localhost:5173` (redirects to
+`/console`) — the console header shows "Backend connected" — on every teammate's machine.
 **Document:** any OS-specific setup fixes added to README.
 
 ## Checkpoint 3 — Core loop (terminal)
@@ -102,29 +103,35 @@ replay the demo (onboard → send/reply ×3) → `topic_offered` with `by: gemin
 **Test:** fill the form → GET /profile/dr_patel shows the three starting topics at 1.
 **Document:** screenshot.
 
-## Checkpoint 7 — Phone page
-**Goal:** cards arrive as a conversation thread on a phone-shaped page; buttons drive the loop.
-The operator view has only the "Send next card" button here; the metrics and ION panels join it
-in Checkpoints 9 and 11.
+## Checkpoint 7 — Impiricus console
+**Goal:** the Impiricus/brand side at `/console` (`/` redirects there): header with the backend
+indicator, demo controls (Reset demo, open Dr. Patel's phone), "Send next card" with a status line,
+the ION panel (simulated), the metrics (engagement score, rates, topics added, muted, saved, current
+scores) and the event timeline. Polls every 2 seconds. Absorbs the former metrics page and mock ION panel.
 
-**Test:** operator clicks Send → the card appears at the bottom of the phone thread within 2 seconds →
-tapping a button shows the reply under that card and disables its buttons; GET /metrics/dr_patel
+**Test:** Reset demo → "Ready to send" → Send → "Waiting for Dr. Patel's reply to: Ozempic label:
+kidney outcomes indication", Send disabled. Answering through the API updates status, metrics, ION and
+timeline within ~2 s without a reload. After the full path: engagement 72 "High signal", reply 100%,
+yes 67%, 1 topic added, 0 muted, 2 saved; kidney outcomes 3 first; ION "kidney outcomes content (top
+score 3 from replies)" (before any replies: "General update for endocrinology (specialty only)"); the
+weight management row carries the "Compliance safeguard" tag. Stopping the backend shows "Backend not
+running" and "reconnecting…" without clearing panels; restarting recovers without a reload.
+**Document:** screenshot for the pitch slide.
+
+## Checkpoint 8 — Brief (phone thread)
+**Goal:** cards arrive as a conversation thread on a phone-shaped page at `/phone/brief` (`/phone`
+redirects there); buttons drive the loop.
+
+**Test:** operator clicks Send in the console → the card appears at the bottom of the phone thread within
+2 seconds → tapping a button shows the reply under that card and disables its buttons; the console
 reflects the reply. Earlier messages stay visible.
 **Document:** screenshot of each card; short screen recording (backup for the demo video).
 
-## Checkpoint 8 — Vault
+## Checkpoint 9 — Vault
+**Goal:** saved cards with a search box at `/phone/vault`.
+
 **Test:** after the path, vault shows 2 saved items; search "kidney" finds them; search "xyz" finds none.
-**Document:** screenshot.
-
-## Checkpoint 9 — Metrics page
-**Test:** timeline lists every event in order; topic scores match the terminal run; engagement
-score 72, reply rate 100%, yes rate 67%, 1 topic added, 2 saved.
 **Document:** screenshot. ← **MVP complete here.**
-
-## Checkpoint 11 — Mock ION panel
-**Test:** panel shows "General update for endocrinology (specialty only)" before any taps and
-"kidney outcomes content (top score 3 from replies)" after the path.
-**Document:** screenshot for the pitch slide.
 
 ## Checkpoint 12 — Demo freeze
 **Goal:** nothing new, only reliability.
