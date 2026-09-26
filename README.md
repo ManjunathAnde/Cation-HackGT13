@@ -2,7 +2,8 @@
 
 HackGT 13, Impiricus challenge. An agent that sends doctors research cards over RCS,
 learns from their Yes / Not interested replies, and feeds the learned profile to a
-simulated Impiricus ION platform. See `CLAUDE.md` for details.
+simulated Impiricus ION platform. See `blueprint.md` for the full specification and
+`docs/CHECKPOINTS.md` for the build checkpoints.
 
 ## Prerequisites
 
