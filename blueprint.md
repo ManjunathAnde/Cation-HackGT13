@@ -125,7 +125,7 @@ Every event: `t` (epoch seconds, float), `type`, `doctor`, plus the details belo
 `providers_tried` lists each source attempted with its result, Redis first, e.g.
 `[{"provider": "redis", "result": "miss"}, {"provider": "gemini", "result": "timeout"}, {"provider": "groq", "result": "ok"}]`.
 Redis result ∈ `hit`, `miss`, `unreachable` (no Redis entry when `REDIS_URL` is not set); provider
-result ∈ `ok`, `timeout`, `invalid_output`, `error` (never error text, keys, or `REDIS_URL`).
+result ∈ `ok`, `timeout`, `rate_limited` (HTTP 429), `invalid_output`, `error` (never error text, keys, or `REDIS_URL`).
 Empty when `LLM_MODE=off`.
 
 ### 5.4 Files
