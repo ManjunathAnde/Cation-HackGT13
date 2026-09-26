@@ -3,6 +3,8 @@
 Run from backend/:  python -m app.demo_run
 """
 
+import sys
+
 from app import core
 
 DOCTOR = "dr_patel"
@@ -58,6 +60,7 @@ def first_card(kind, topic):
 
 
 def main():
+    sys.stdout.reconfigure(encoding="utf-8")
     label_card = first_card("label", "kidney outcomes")
     safety_study = first_card("study", "ozempic safety")
     kidney_study = first_card("study", "kidney outcomes")

@@ -55,6 +55,14 @@ def doctor_events(doctor_id):
     return [event for event in EVENTS if event["doctor"] == doctor_id]
 
 
+def forget_events(doctor_id):
+    EVENTS[:] = [event for event in EVENTS if event["doctor"] != doctor_id]
+
+
+def events(since=0):
+    return [event for event in EVENTS if event["t"] > since]
+
+
 # ---------- onboarding and profile ----------
 
 def onboard(doctor_id, name, specialty, conditions, interests, frequency):
@@ -66,6 +74,7 @@ def onboard(doctor_id, name, specialty, conditions, interests, frequency):
             raise Invalid(f"Interest is not an approved topic: {interest}")
 
     starting = [CONDITION_TOPICS[condition] for condition in conditions] + list(interests)
+    forget_events(doctor_id)  # re-onboarding resets the doctor, including their thread
     DOCTORS[doctor_id] = {
         "id": doctor_id,
         "name": name,
@@ -158,6 +167,10 @@ def pick_order(doctor):
 
 def next_card(doctor_id):
     doctor = get_doctor(doctor_id)
+    if doctor["last_card_id"] and doctor["last_card_id"] not in doctor["answered"]:
+        raise BadRequest("Doctor has an unanswered card")
+    if doctor["pending_offer"]:
+        raise BadRequest("Doctor has a pending topic offer")
     for card, topic in pick_order(doctor):
         passed, reason = guard(card)
         if not passed:
@@ -267,11 +280,46 @@ def ion(doctor):
     return {"pick": f"{top} content", "why": f"top score {doctor['topics'][top]:g} from replies"}
 
 
+# ---------- inbox ----------
+
+def inbox(doctor_id):
+    """The doctor's thread from the event log, plus the one item awaiting a reply (§10)."""
+    get_doctor(doctor_id)
+    messages = []
+    for event in doctor_events(doctor_id):
+        if event["type"] == "card_sent":
+            card = dict(CARDS_BY_ID[event["card"]])
+            messages.append({"type": "card", "t": event["t"], "card": card, "answer": None})
+        elif event["type"] == "reply":
+            open_message(messages, "card", lambda m: m["card"]["id"] == event["card"])["answer"] = event["answer"]
+        elif event["type"] == "topic_offered":
+            messages.append({"type": "offer", "t": event["t"], "topic": event["topic"], "answer": None})
+        elif event["type"] == "topic_answer":
+            open_message(messages, "offer", lambda m: m["topic"] == event["topic"])["answer"] = event["answer"]
+    unanswered = [message for message in messages if message["answer"] is None]
+    return {"messages": messages, "active": unanswered[-1] if unanswered else None}
+
+
+def open_message(messages, message_type, matches):
+    """The most recent unanswered message of this type that matches."""
+    return next(
+        message for message in reversed(messages)
+        if message["type"] == message_type and message["answer"] is None and matches(message)
+    )
+
+
 # ---------- vault and metrics ----------
 
-def vault(doctor_id):
+def vault(doctor_id, q=None):
     doctor = get_doctor(doctor_id)
-    return [dict(CARDS_BY_ID[card_id]) for card_id in doctor["vault"]]
+    cards = [dict(CARDS_BY_ID[card_id]) for card_id in doctor["vault"]]
+    if not q:
+        return cards
+    needle = q.lower()
+    return [
+        card for card in cards
+        if needle in card["title"].lower() or any(needle in topic.lower() for topic in card["topics"])
+    ]
 
 
 def round_half_up(value, places=0):
