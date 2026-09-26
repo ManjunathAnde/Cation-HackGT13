@@ -20,6 +20,34 @@
   --danger: #b42318;
   --danger-bg: #fdecea;
 
+  /* Console and metrics, sampled from docs/design/impiricusmetrics.jpeg */
+  --dark-card: #18201b;
+  --dark-ink: #fcfffd;
+  --dark-muted: #a9b1ad;
+  --dark-accent: #a8dfbf;
+  --gauge-fill: #6ed590;
+  --gauge-track: #37403b;
+  --gauge-ring: #cbecd8;
+  --gauge-value: #c4e4d5;
+  --border-card: #e2e2e0;
+  --ink-label: #6b716e;
+  --ink-faint: #80857f;
+  --brand-ink: #1f5a3a;
+  --badge-bg: #e8f1ec;
+  --badge-ink: #144629;
+  --bar-fill: #2b5c9e;
+  --bar-track: #efefef;
+  --bar-muted: #c4c7c3;
+  --divider: #e9e9e9;
+  --timeline-line: #d0d2cd;
+  --ok: #1f7a45;
+  --ai-bg: #eef3fb;
+  --safeguard-bg: #fff4e0;
+  --safeguard-ink: #8a4b00;
+  --safeguard-border: #f0c77a;
+  --highlight-bg: #e4f6ea;
+  --radius-panel: 18px;
+
   --font-sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-serif: Georgia, "Times New Roman", serif;
 

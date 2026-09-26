@@ -6,6 +6,12 @@ export function navigate(path) {
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
+// Like navigate, but replaces the history entry so Back doesn't return to the redirecting path.
+export function redirect(path) {
+  window.history.replaceState({}, "", path);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
 export function usePath() {
   const [path, setPath] = useState(window.location.pathname);
   useEffect(() => {
