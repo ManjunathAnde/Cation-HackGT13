@@ -22,6 +22,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 FALLBACK = ["cardio-kidney-metabolic care", "weight management"]
 TIMEOUT_SECONDS = 5
+GROQ_MAX_TOKENS = 100  # the answer is ~18 tokens; without a cap Groq assumes ~1300 and the free tier (1000/min) refuses
 GEMINI_SERVER_DEADLINE_MS = 10_000  # Gemini rejects deadlines under 10 s; our 5 s limit is enforced below
 # Each provider call runs here so we can stop waiting after TIMEOUT_SECONDS. A call we stop waiting
 # for finishes in the background (bounded by the SDK timeouts) and its result is ignored.
@@ -179,6 +180,7 @@ def ask_groq(prompt, key, model):
         model=model,
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
+        max_completion_tokens=GROQ_MAX_TOKENS,
     )
     return response.choices[0].message.content
 
@@ -196,8 +198,11 @@ def parse_topics(text, candidates):
 
 
 def failure_type(exc):
-    """timeout or error, from the exception class names only (never the message)."""
-    chain = [exc, exc.__cause__, exc.__context__]
-    if any(e is not None and "timeout" in type(e).__name__.lower() for e in chain):
+    """timeout, rate_limited or error, from exception classes and status codes only (never the message)."""
+    chain = [e for e in (exc, exc.__cause__, exc.__context__) if e is not None]
+    if any("timeout" in type(e).__name__.lower() for e in chain):
         return "timeout"
+    if any(type(e).__name__ == "RateLimitError" or 429 in (getattr(e, "status_code", None), getattr(e, "code", None))
+           for e in chain):
+        return "rate_limited"
     return "error"
