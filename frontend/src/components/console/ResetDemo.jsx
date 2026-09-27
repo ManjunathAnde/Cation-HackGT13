@@ -2,27 +2,18 @@ import { useState } from "react";
 import { api } from "../../api.js";
 import SecondaryButton from "../ui/SecondaryButton.jsx";
 
-// The §12 demo doctor, exactly as onboarded in the demo path.
-const DEMO_DOCTOR = {
-  id: "dr_patel",
-  name: "Dr. Patel",
-  specialty: "endocrinology",
-  conditions: ["type 2 diabetes", "chronic kidney disease"],
-  interests: ["ozempic safety"],
-  frequency: "weekly",
-};
-
-// note ({ ok, text } or null) is kept by the page, so it survives the switch from the
+// doctor: a preset from doctors.js, onboarded again with its fixed profile.
+// note ({ ok, text } or null) is kept by the doctor's console, so it survives the switch from the
 // "not onboarded" view to the full console after a successful reset.
-export default function ResetDemo({ note, onResult }) {
+export default function ResetDemo({ doctor, note, onResult }) {
   const [busy, setBusy] = useState(false);
 
   async function reset() {
-    if (!window.confirm("This clears Dr. Patel's thread, vault, and scores.")) return;
+    if (!window.confirm(`This clears ${doctor.name}'s thread, vault, and scores.`)) return;
     setBusy(true);
-    const result = await api("POST", "/onboard", DEMO_DOCTOR);
+    const result = await api("POST", "/onboard", doctor);
     setBusy(false);
-    if (result.ok) onResult({ ok: true, text: "Dr. Patel reset." });
+    if (result.ok) onResult({ ok: true, text: `${doctor.name} reset.` });
     else if (result.status === 0) onResult({ ok: false, text: "Can't reach Cation. Is the backend running?" });
     else onResult({ ok: false, text: result.data.detail });
   }

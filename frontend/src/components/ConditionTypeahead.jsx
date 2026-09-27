@@ -3,14 +3,24 @@ import TextInput from "./ui/TextInput.jsx";
 import RemovablePill from "./ui/RemovablePill.jsx";
 import "./ConditionTypeahead.css";
 
-// Friendly label → exact API value. Only these can be selected; free text is never sent.
-export const CONDITION_OPTIONS = [
-  { label: "Type 2 diabetes (T2D)", value: "type 2 diabetes" },
-  { label: "Chronic kidney disease (CKD)", value: "chronic kidney disease" },
-];
-const COVERAGE_HINT = "Cation currently covers: Type 2 diabetes, Chronic kidney disease.";
+const SHORT_FORM = /\s*\(([^)]+)\)\s*$/; // "Chronic kidney disease (CKD)" → "CKD"
 
-export default function ConditionTypeahead({ inputId, selected, onChange, invalid, describedBy }) {
+// "Cation currently covers: Type 2 diabetes, Chronic kidney disease."
+function coverageHint(options) {
+  return `Cation currently covers: ${options.map((option) => option.label.replace(SHORT_FORM, "")).join(", ")}.`;
+}
+
+// "Type a condition, e.g. CKD": the last condition's short form, else its label.
+function placeholder(options) {
+  const last = options[options.length - 1];
+  if (!last) return "Type a condition";
+  const short = last.label.match(SHORT_FORM);
+  return `Type a condition, e.g. ${short ? short[1] : last.label}`;
+}
+
+// options: the specialty's conditions from GET /specialties, [{ value, label }]. Only these can be
+// selected (labels shown, exact values sent); free text is never sent.
+export default function ConditionTypeahead({ inputId, options, selected, onChange, invalid, describedBy }) {
   const listId = useId();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -19,7 +29,7 @@ export default function ConditionTypeahead({ inputId, selected, onChange, invali
   const [navigated, setNavigated] = useState(false); // arrow keys used since the last keystroke
 
   const needle = query.trim().toLowerCase();
-  const suggestions = CONDITION_OPTIONS.filter(
+  const suggestions = options.filter(
     (option) => !selected.includes(option.value) && option.label.toLowerCase().includes(needle),
   );
   const listOpen = open && suggestions.length > 0;
@@ -58,7 +68,7 @@ export default function ConditionTypeahead({ inputId, selected, onChange, invali
         type="text"
         role="combobox"
         autoComplete="off"
-        placeholder="Type a condition, e.g. CKD"
+        placeholder={placeholder(options)}
         aria-expanded={listOpen}
         aria-controls={listId}
         aria-autocomplete="list"
@@ -97,12 +107,12 @@ export default function ConditionTypeahead({ inputId, selected, onChange, invali
         </ul>
       )}
 
-      {showHint && <p className="typeahead__hint">{COVERAGE_HINT}</p>}
+      {showHint && <p className="typeahead__hint">{coverageHint(options)}</p>}
 
       {selected.length > 0 && (
         <div className="typeahead__pills">
           {selected.map((value) => {
-            const option = CONDITION_OPTIONS.find((o) => o.value === value);
+            const option = options.find((o) => o.value === value);
             return (
               <RemovablePill
                 key={value}

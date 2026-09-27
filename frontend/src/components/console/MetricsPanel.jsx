@@ -5,6 +5,7 @@ import SerifHeading from "../ui/SerifHeading.jsx";
 import StatCard from "../ui/StatCard.jsx";
 import Tag from "../ui/Tag.jsx";
 import { topicLabel } from "../../format.js";
+import { useTopicLabels } from "../../specialties.js";
 
 const MUTE_AT = -2;
 
@@ -43,6 +44,7 @@ function EngagementCard({ score }) {
 }
 
 function ScoreRows({ scores, mutedTopics }) {
+  const labels = useTopicLabels();
   const rows = Object.entries(scores).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   if (rows.length === 0) return <p className="scores__empty">No topics yet.</p>;
   const scale = Math.max(3, ...rows.map(([, score]) => score));
@@ -54,7 +56,7 @@ function ScoreRows({ scores, mutedTopics }) {
           <li key={topic} className={muted ? "scores__row scores__row--muted" : "scores__row"}>
             <div className="scores__head">
               <span className="scores__topic">
-                {topicLabel(topic)}
+                {topicLabel(topic, labels)}
                 {muted && <> <Tag tone="muted">Muted</Tag></>}
               </span>
               <span className="scores__value">{formatScore(score)}</span>
@@ -69,13 +71,13 @@ function ScoreRows({ scores, mutedTopics }) {
   );
 }
 
-// metrics: GET /metrics response (null until loaded); mutedTopics: profile.muted.
-export default function MetricsPanel({ metrics, mutedTopics }) {
+// name: the doctor's display name; metrics: GET /metrics response (null until loaded); mutedTopics: profile.muted.
+export default function MetricsPanel({ name, metrics, mutedTopics }) {
   return (
     <section className="metrics" aria-label="Metrics">
       <Eyebrow>Learning signal</Eyebrow>
-      <SerifHeading as="h1" size="page">Dr. Patel's metrics</SerifHeading>
-      <p className="metrics__subtitle">How the brief is adapting to her replies.</p>
+      <SerifHeading as="h1" size="page">{name}'s metrics</SerifHeading>
+      <p className="metrics__subtitle">How the brief is adapting to their replies.</p>
       {!metrics ? (
         <p className="metrics__loading">Loading metrics…</p>
       ) : (

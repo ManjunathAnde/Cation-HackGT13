@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { redirect, usePath } from "./router.jsx";
+import { redirect, useDoctorId, useLocation } from "./router.jsx";
 import Brief from "./pages/Brief.jsx";
 import Console from "./pages/Console.jsx";
 import NotFound from "./pages/NotFound.jsx";
@@ -19,14 +19,16 @@ const REDIRECTS = {
 };
 
 export default function App() {
-  const path = usePath();
+  const { path, search } = useLocation();
+  const doctorId = useDoctorId();
   const target = REDIRECTS[path];
 
   useEffect(() => {
-    if (target) redirect(target);
-  }, [target]);
+    if (target) redirect(target + search); // keeps ?doctor=
+  }, [target, search]);
 
   if (target) return null;
   const Page = ROUTES[path] || NotFound;
-  return <Page />;
+  // Keyed by doctor: switching ?doctor= rebuilds the page, so no data from the previous doctor remains.
+  return <Page key={path.startsWith("/phone/") ? doctorId : path} />;
 }

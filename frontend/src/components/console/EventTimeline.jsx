@@ -1,9 +1,11 @@
+import { useTopicLabels } from "../../specialties.js";
 import SerifHeading from "../ui/SerifHeading.jsx";
 import Tag from "../ui/Tag.jsx";
 import { cardTitles, clockTime, describe, providersLine } from "./timelineText.js";
 
-// timeline: metrics.timeline (oldest first from the API); shown newest first.
-export default function EventTimeline({ timeline }) {
+// name: the doctor's display name; timeline: metrics.timeline (oldest first from the API); shown newest first.
+export default function EventTimeline({ name, timeline }) {
+  const labels = useTopicLabels();
   const titles = cardTitles(timeline);
   const rows = timeline.map((event, index) => ({ event, index })).reverse();
   return (
@@ -14,7 +16,7 @@ export default function EventTimeline({ timeline }) {
       ) : (
         <ol className="timeline__list">
           {rows.map(({ event, index }) => {
-            const { text, tone } = describe(event, titles);
+            const { text, tone } = describe(event, titles, name, labels);
             const providers = providersLine(event);
             return (
               <li key={index} className={`timeline__row timeline__row--${tone}`} data-type={event.type}>

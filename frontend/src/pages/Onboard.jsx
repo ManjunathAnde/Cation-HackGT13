@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { api, APPROVED_TOPICS, DOCTOR_ID } from "../api.js";
+import { useEffect, useState } from "react";
+import { api } from "../api.js";
 import { navigate } from "../router.jsx";
+import { useSpecialties } from "../specialties.js";
 import ConditionTypeahead from "../components/ConditionTypeahead.jsx";
 import CheckPill from "../components/ui/CheckPill.jsx";
 import FieldError from "../components/ui/FieldError.jsx";
@@ -8,6 +9,7 @@ import FieldLabel from "../components/ui/FieldLabel.jsx";
 import Notice from "../components/ui/Notice.jsx";
 import PhoneColumn from "../components/ui/PhoneColumn.jsx";
 import PrimaryButton from "../components/ui/PrimaryButton.jsx";
+import SecondaryButton from "../components/ui/SecondaryButton.jsx";
 import SegmentedControl from "../components/ui/SegmentedControl.jsx";
 import TextInput from "../components/ui/TextInput.jsx";
 import Wordmark from "../components/ui/Wordmark.jsx";
@@ -21,16 +23,23 @@ const UNREACHABLE = "Can't reach Cation. Is the backend running?";
 
 const titleCase = (topic) => topic.replace(/(^|[\s-])\w/g, (letter) => letter.toUpperCase());
 
+// "Dr. Evan" → dr_evan, "Maya Chen" → dr_maya_chen: lowercase letters, digits and underscores, starting "dr_".
+function doctorIdFrom(name) {
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  if (!slug) return "";
+  return slug.startsWith("dr_") ? slug : `dr_${slug}`;
+}
+
 // Checks the form only; every product decision is made by the backend.
-function validate({ name, specialty, conditions, interests }) {
+function validate({ name, conditions, interests }) {
   const errors = {};
-  if (!name.trim()) errors.name = "Enter your name.";
-  if (!specialty.trim()) errors.specialty = "Enter your specialty.";
+  if (!doctorIdFrom(name)) errors.name = "Enter your name.";
   if (conditions.length === 0 && interests.length === 0) errors.topics = "Add at least one condition or interest.";
   return errors;
 }
 
 export default function Onboard() {
+  const specialties = useSpecialties();
   const [name, setName] = useState("");
   const [specialty, setSpecialty] = useState("");
   const [conditions, setConditions] = useState([]);
@@ -41,6 +50,20 @@ export default function Onboard() {
   const [submitting, setSubmitting] = useState(false);
 
   const clearError = (field) => setErrors((current) => ({ ...current, [field]: undefined }));
+  const config = specialties.specialties.find((option) => option.value === specialty);
+  const doctorId = doctorIdFrom(name);
+
+  // Pre-select the first specialty (Endocrinology) once the list arrives.
+  useEffect(() => {
+    if (specialties.status === "ready" && !specialty) setSpecialty(specialties.specialties[0].value);
+  }, [specialties, specialty]);
+
+  function chooseSpecialty(value) {
+    setSpecialty(value);
+    setConditions([]);
+    setInterests([]);
+    clearError("topics");
+  }
 
   function toggleInterest(topic, checked) {
     setInterests((current) => (checked ? [...current, topic] : current.filter((t) => t !== topic)));
@@ -49,22 +72,22 @@ export default function Onboard() {
 
   async function onSubmit(event) {
     event.preventDefault();
-    const found = validate({ name, specialty, conditions, interests });
+    const found = validate({ name, conditions, interests });
     setErrors(found);
     setNotice("");
     if (Object.keys(found).length > 0) return;
 
     setSubmitting(true);
     const result = await api("POST", "/onboard", {
-      id: DOCTOR_ID,
+      id: doctorId,
       name: name.trim(),
-      specialty: specialty.trim(),
+      specialty,
       conditions,
       interests,
       frequency,
     });
     setSubmitting(false);
-    if (result.ok) navigate("/phone/brief");
+    if (result.ok) navigate(`/phone/brief?doctor=${encodeURIComponent(doctorId)}`);
     else setNotice(result.status === 0 ? UNREACHABLE : result.data.detail);
   }
 
@@ -93,24 +116,29 @@ export default function Onboard() {
               clearError("name");
             }}
           />
+          {doctorId && <p className="onboard__doctor-id">Your Cation ID: {doctorId}</p>}
           <FieldError id="onboard-name-error">{errors.name}</FieldError>
         </div>
 
         <div className="onboard__group">
-          <FieldLabel htmlFor="onboard-specialty" text="Specialty" meta="Required" />
-          <TextInput
-            id="onboard-specialty"
-            type="text"
-            placeholder="e.g. Endocrinology"
-            value={specialty}
-            invalid={Boolean(errors.specialty)}
-            aria-describedby="onboard-specialty-error"
-            onChange={(event) => {
-              setSpecialty(event.target.value);
-              clearError("specialty");
-            }}
-          />
-          <FieldError id="onboard-specialty-error">{errors.specialty}</FieldError>
+          <FieldLabel text="Specialty" meta="Required" />
+          {specialties.status === "loading" && <p className="onboard__helper">Loading specialties…</p>}
+          {specialties.status === "error" && (
+            <div className="onboard__load-error">
+              <p className="onboard__load-error-text">Can't reach Cation.</p>
+              <SecondaryButton type="button" onClick={specialties.retry}>
+                Retry
+              </SecondaryButton>
+            </div>
+          )}
+          {specialties.status === "ready" && (
+            <SegmentedControl
+              label="Specialty"
+              options={specialties.specialties.map((option) => ({ value: option.value, label: option.label }))}
+              value={specialty}
+              onChange={chooseSpecialty}
+            />
+          )}
         </div>
 
         <div className="onboard__group">
@@ -120,7 +148,9 @@ export default function Onboard() {
             meta="Add at least one condition or interest"
           />
           <ConditionTypeahead
+            key={specialty}
             inputId="onboard-conditions"
+            options={config ? config.conditions : []}
             selected={conditions}
             invalid={Boolean(errors.topics)}
             describedBy="onboard-conditions-help onboard-topics-error"
@@ -140,7 +170,7 @@ export default function Onboard() {
             <FieldLabel text="Interests" meta="Select any" />
           </legend>
           <div className="onboard__pills">
-            {APPROVED_TOPICS.map((topic) => (
+            {(config ? config.topics.map((topic) => topic.value) : []).map((topic) => (
               <CheckPill
                 key={topic}
                 label={titleCase(topic)}
@@ -157,7 +187,7 @@ export default function Onboard() {
         </div>
 
         <Notice>{notice}</Notice>
-        <PrimaryButton type="submit" disabled={submitting}>
+        <PrimaryButton type="submit" disabled={submitting || !config}>
           {submitting ? "Starting…" : "Start my research brief →"}
         </PrimaryButton>
         <p className="onboard__caption">About 2 minutes a week. Adjust your topics anytime.</p>

@@ -21,25 +21,27 @@ export function cardTitles(timeline) {
 }
 
 // Returns { text, tone } for one event. tone: "plain", "blocked", "ai" or "safeguard".
-export function describe(event, titles) {
+// name: the doctor's display name; labels: topic → label from GET /specialties (may be empty).
+export function describe(event, titles, name, labels) {
   const card = titles[event.card] || event.card;
+  const topic = (value) => topicLabel(value, labels);
   switch (event.type) {
     case "onboarded":
-      return { text: `Onboarded — topics: ${Object.keys(event.topics || {}).map(topicLabel).join(", ")}`, tone: "plain" };
+      return { text: `Onboarded — topics: ${Object.keys(event.topics || {}).map(topic).join(", ")}`, tone: "plain" };
     case "card_sent":
-      return { text: `${SENT_LABELS[event.trigger] || "Sent"}: ${event.title} (for ${topicLabel(event.topic)}) — ${event.reason}`, tone: "plain" };
+      return { text: `${SENT_LABELS[event.trigger] || "Sent"}: ${event.title} (for ${topic(event.topic)}) — ${event.reason}`, tone: "plain" };
     case "card_blocked":
       return { text: `Blocked card ${event.card}: ${event.reason}`, tone: "blocked" };
     case "reply":
-      return { text: `Dr. Patel replied ${REPLY_LABELS[event.answer] || event.answer} to ${card}`, tone: "plain" };
+      return { text: `${name} replied ${REPLY_LABELS[event.answer] || event.answer} to ${card}`, tone: "plain" };
     case "topic_muted":
-      return { text: `Muted: ${topicLabel(event.topic)}`, tone: "plain" };
+      return { text: `Muted: ${topic(event.topic)}`, tone: "plain" };
     case "topic_offered":
-      return { text: `Agent offered: ${topicLabel(event.topic)} — suggested by ${BY_LABELS[event.by] || event.by}`, tone: "ai" };
+      return { text: `Agent offered: ${topic(event.topic)} — suggested by ${BY_LABELS[event.by] || event.by}`, tone: "ai" };
     case "topic_blocked":
-      return { text: `Blocked: ${topicLabel(event.topic)} — ${event.reason}`, tone: "safeguard" };
+      return { text: `Blocked: ${topic(event.topic)} — ${event.reason}`, tone: "safeguard" };
     case "topic_answer":
-      return { text: `Dr. Patel answered ${ANSWER_LABELS[event.answer] || event.answer} to ${topicLabel(event.topic)}`, tone: "plain" };
+      return { text: `${name} answered ${ANSWER_LABELS[event.answer] || event.answer} to ${topic(event.topic)}`, tone: "plain" };
     default:
       return { text: event.type, tone: "plain" };
   }

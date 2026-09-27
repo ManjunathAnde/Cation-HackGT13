@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { api, DOCTOR_ID } from "../../api.js";
+import { api } from "../../api.js";
 import Panel from "../ui/Panel.jsx";
 import PrimaryButton from "../ui/PrimaryButton.jsx";
 import { topicLabel } from "../../format.js";
+import { useTopicLabels } from "../../specialties.js";
 
-function statusLine(inbox) {
+function statusLine(inbox, name, labels) {
   if (!inbox) return "Checking…";
   const active = inbox.active;
   if (!active) return "Ready to send";
-  if (active.type === "card") return `Waiting for Dr. Patel's reply to: ${active.card.title}`;
-  return `Waiting for Dr. Patel's answer: ${topicLabel(active.topic)}?`;
+  if (active.type === "card") return `Waiting for ${name}'s reply to: ${active.card.title}`;
+  return `Waiting for ${name}'s answer: ${topicLabel(active.topic, labels)}?`;
 }
 
 function resultOf(response) {
@@ -22,14 +23,15 @@ function resultOf(response) {
 }
 
 // inbox: last GET /inbox response (null until the first one arrives).
-export default function SendCard({ inbox, onSent }) {
+export default function SendCard({ doctorId, name, inbox, onSent }) {
+  const labels = useTopicLabels();
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
   const waiting = !inbox || inbox.active !== null;
 
   async function send() {
     setSending(true);
-    const response = await api("POST", `/send/${DOCTOR_ID}`);
+    const response = await api("POST", `/send/${doctorId}`);
     setSending(false);
     setResult(resultOf(response));
     onSent();
@@ -40,7 +42,7 @@ export default function SendCard({ inbox, onSent }) {
       <h2 className="console-panel-title">Send next card (manual override)</h2>
       <p className="send-card__hint">Cards are sent automatically after each answer.</p>
       <p className={`send-card__status${waiting ? " send-card__status--waiting" : ""}`} role="status">
-        {statusLine(inbox)}
+        {statusLine(inbox, name, labels)}
       </p>
       <PrimaryButton type="button" onClick={send} disabled={sending || waiting}>
         {sending ? "Sending…" : "Send next card"}

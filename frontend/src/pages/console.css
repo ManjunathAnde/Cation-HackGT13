@@ -395,3 +395,15 @@
   font-size: 24px;
   color: var(--ink);
 }
+
+/* Doctor switcher (Checkpoint 11d) */
+.doctor-switcher {
+  margin-bottom: 24px;
+}
+.doctor-switcher__other {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  max-width: 480px;
+}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { api, DOCTOR_ID } from "../api.js";
+import { api } from "../api.js";
+import { useDoctorId } from "../router.jsx";
 import DoctorGate from "../components/phone/DoctorGate.jsx";
 import ResearchCard from "../components/phone/ResearchCard.jsx";
 import Eyebrow from "../components/ui/Eyebrow.jsx";
@@ -12,8 +13,8 @@ import "./brief.css";
 
 const DEBOUNCE_MS = 300;
 
-function vaultPath(q) {
-  return `/vault/${DOCTOR_ID}` + (q ? `?q=${encodeURIComponent(q)}` : "");
+function vaultPath(doctorId, q) {
+  return `/vault/${doctorId}` + (q ? `?q=${encodeURIComponent(q)}` : "");
 }
 
 function readsLine(count) {
@@ -22,7 +23,7 @@ function readsLine(count) {
 
 // Loads the vault right away on open, then searches on the backend 300 ms after typing stops.
 // Only the newest request's response is used. `total` comes from the latest load without a query.
-function useVaultSearch(query) {
+function useVaultSearch(doctorId, query) {
   const [state, setState] = useState({ cards: null, total: 0, shownQuery: "", failed: false });
   const sent = useRef(0);
   const loaded = useRef(false);
@@ -32,7 +33,7 @@ function useVaultSearch(query) {
     const timer = setTimeout(
       async () => {
         const id = ++sent.current;
-        const result = await api("GET", vaultPath(q));
+        const result = await api("GET", vaultPath(doctorId, q));
         if (id !== sent.current) return;
         loaded.current = true;
         setState((previous) =>
@@ -44,14 +45,15 @@ function useVaultSearch(query) {
       loaded.current ? DEBOUNCE_MS : 0
     );
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [doctorId, query]);
 
   return state;
 }
 
 function Saved() {
   const [query, setQuery] = useState("");
-  const { cards, total, shownQuery, failed } = useVaultSearch(query);
+  const doctorId = useDoctorId();
+  const { cards, total, shownQuery, failed } = useVaultSearch(doctorId, query);
 
   return (
     <PhoneColumn withTabBar>

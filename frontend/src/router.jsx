@@ -1,5 +1,6 @@
 // Minimal pathname router: no router library (blueprint §13).
 import { useEffect, useState } from "react";
+import { DEFAULT_DOCTOR_ID } from "./api.js";
 
 export function navigate(path) {
   window.history.pushState({}, "", path);
@@ -12,12 +13,32 @@ export function redirect(path) {
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
-export function usePath() {
-  const [path, setPath] = useState(window.location.pathname);
+function currentLocation() {
+  return { path: window.location.pathname, search: window.location.search };
+}
+
+// { path, search }, updated on every navigation (also when only the query string changes).
+export function useLocation() {
+  const [location, setLocation] = useState(currentLocation);
   useEffect(() => {
-    const update = () => setPath(window.location.pathname);
+    const update = () => setLocation(currentLocation());
     window.addEventListener("popstate", update);
     return () => window.removeEventListener("popstate", update);
   }, []);
-  return path;
+  return location;
+}
+
+export function usePath() {
+  return useLocation().path;
+}
+
+// The doctor for /phone/* pages: ?doctor=<id>, else Dr. Patel.
+export function useDoctorId() {
+  const { search } = useLocation();
+  return new URLSearchParams(search).get("doctor") || DEFAULT_DOCTOR_ID;
+}
+
+// `path` with the current query string kept (so ?doctor= survives navigation).
+export function withSearch(path) {
+  return path + window.location.search;
 }

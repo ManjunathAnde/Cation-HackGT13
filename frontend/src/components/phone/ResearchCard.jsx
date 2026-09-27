@@ -1,4 +1,5 @@
 import { topicLabel } from "../../format.js";
+import { useTopicLabels } from "../../specialties.js";
 import "./researchCard.css";
 
 const SOURCE_LABELS = { label: "FDA label · DailyMed", study: "Study · PubMed" };
@@ -6,13 +7,14 @@ const SOURCE_LABELS = { label: "FDA label · DailyMed", study: "Study · PubMed"
 // A research card as the doctor sees it (Brief and Vault). `children` go under the footer
 // (the Brief's answer buttons).
 export default function ResearchCard({ card, children }) {
+  const labels = useTopicLabels();
   return (
     <div className="brief-card">
       <div className="brief-card__meta">
         <div className="brief-card__pills">
           {card.topics.map((topic) => (
             <span key={topic} className="topic-pill">
-              {topicLabel(topic)}
+              {topicLabel(topic, labels)}
             </span>
           ))}
         </div>

@@ -1,4 +1,5 @@
-import { api, DOCTOR_ID } from "../../api.js";
+import { api } from "../../api.js";
+import { useDoctorId } from "../../router.jsx";
 import AgentLine from "./AgentLine.jsx";
 import AnswerButtons from "./AnswerButtons.jsx";
 import ReplyBubble from "./ReplyBubble.jsx";
@@ -12,9 +13,10 @@ const CARD_OPTIONS = [
 // One research card in the Brief. Buttons only when `active` (the API's active item); the answer below when answered.
 export default function CardMessage({ message, active, onAnswered }) {
   const { card } = message;
+  const doctorId = useDoctorId();
 
   function submit(answer) {
-    return api("POST", "/reply", { doctor_id: DOCTOR_ID, card_id: card.id, answer });
+    return api("POST", "/reply", { doctor_id: doctorId, card_id: card.id, answer });
   }
 
   return (

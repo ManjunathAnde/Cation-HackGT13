@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
-import { DOCTOR_ID } from "../api.js";
-import { redirect } from "../router.jsx";
+import { redirect, useDoctorId, withSearch } from "../router.jsx";
 import usePoll from "../usePoll.js";
 import AgentLine from "../components/phone/AgentLine.jsx";
 import CardMessage from "../components/phone/CardMessage.jsx";
@@ -37,13 +36,14 @@ function useScrollOnNewMessage(count, loaded) {
 }
 
 function Thread() {
-  const inbox = usePoll(`/inbox/${DOCTOR_ID}`, 2000);
+  const doctorId = useDoctorId();
+  const inbox = usePoll(`/inbox/${doctorId}`, 2000);
   const messages = inbox.data ? inbox.data.messages : [];
   const active = inbox.data ? inbox.data.active : null;
   const cardCount = messages.filter((message) => message.type === "card").length;
 
   useEffect(() => {
-    if (inbox.status === 404) redirect("/phone/onboard");
+    if (inbox.status === 404) redirect(withSearch("/phone/onboard"));
   }, [inbox.status]);
   useScrollOnNewMessage(messages.length, inbox.data !== null);
 

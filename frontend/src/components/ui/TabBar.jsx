@@ -1,4 +1,4 @@
-import { navigate, usePath } from "../../router.jsx";
+import { navigate, usePath, withSearch } from "../../router.jsx";
 import "./ui.css";
 
 const TABS = [
@@ -8,7 +8,7 @@ const TABS = [
 
 function go(event, path) {
   event.preventDefault();
-  navigate(path);
+  navigate(withSearch(path));
 }
 
 // Bottom tab bar of the doctor's app.
@@ -19,7 +19,7 @@ export default function TabBar() {
       {TABS.map(({ path, letter, label }) => (
         <a
           key={path}
-          href={path}
+          href={withSearch(path)}
           className={path === current ? "tab-bar__tab tab-bar__tab--active" : "tab-bar__tab"}
           aria-current={path === current ? "page" : undefined}
           onClick={(event) => go(event, path)}
