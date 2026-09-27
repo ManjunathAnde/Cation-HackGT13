@@ -3,9 +3,9 @@
 Each checkpoint is a small, working step. A checkpoint is **done** only when its test passes and its
 notes are written.
 
-**Build order:** 1–5 → 10a → 10b → 6 → 7 → 8 → 9 → 11 → 12. Checkpoints keep their numbers; sections
+**Build order:** 1–5 → 10a → 10b → 6 → 7 → 8 → 9 → 11 → 11c → 12. Checkpoints keep their numbers; sections
 below follow the build order. Checkpoint 7 (Impiricus console) absorbed the metrics page and the mock
-ION panel; 8 is the Brief and 9 the Vault; 11 is now automatic sending.
+ION panel; 8 is the Brief and 9 the Vault; 11 is now automatic sending; 11c adds dermatology.
 
 ## Process rules
 
@@ -144,6 +144,18 @@ first card reply (§7.6). Picker, guard, scoring and explorer rules unchanged; A
 `AUTO_SEND=on` and once with `AUTO_SEND=off` → `API PATH OK` both times; `npm run build` succeeds.
 By hand: Reset demo → the label card is already on the phone; each answer brings the next card; the
 console timeline says "Sent automatically".
+
+## Checkpoint 11c — Second specialty (dermatology)
+**Goal:** Dr. Evan (dermatology) can be onboarded and receives only dermatology research. Topics,
+conditions, explorer candidates, blocked topics, label-card permission and fallback suggestions come
+from `backend/data/specialties.json` per specialty (blueprint §6); unsupported specialty → 422;
+`GET /specialties` lists specialties with condition and topic labels. Dr. Patel's behavior is unchanged.
+
+**Test:** from `backend/`: `python -m app.demo_run` → `DEMO PATH OK`; `python -m app.api_check` against
+a test backend with `LLM_MODE=off` → `API PATH OK`; `python -m app.derm_check` → Dr. Evan gets only
+clinical dermatology cards, the explorer offers `psoriatic arthritis` from the dermatology fallback, no
+blocks; unsupported specialty and dermatology + Ozempic interest → 422; Dr. Patel's path still passes →
+`DERM CHECK OK`.
 
 ## Checkpoint 12 — Demo freeze
 **Goal:** nothing new, only reliability.

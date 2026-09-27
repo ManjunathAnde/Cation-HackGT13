@@ -29,8 +29,11 @@ is validated before use.
 **In scope (MVP):** one doctor (Dr. Patel), one drug (Ozempic), onboarding, phone page,
 intelligence loop, vault, metrics page, simulated ION panel.
 
+**Added in Checkpoint 11c:** a second specialty, dermatology (demo doctor Dr. Evan), configured in
+`backend/data/specialties.json` (§6). Dermatology has no drug and no label: clinical-lane research only.
+
 **Out of scope:** real ION integration, real patient data, authentication, databases,
-deployment, additional doctors or drugs, brand-level aggregate view, score chart (needs approval),
+deployment, additional drugs or specialties beyond §6, brand-level aggregate view, score chart (needs approval),
 persistence of doctor state to disk, billing, inventory.
 
 Delivery is simulated by a phone web page. The card format stays compatible with RCS rich cards
@@ -53,7 +56,7 @@ for future use.
 ```
 React (Vite) → FastAPI → core intelligence layer → in-memory doctor state
                                ↑
-       files: data/label.json, data/cache.json · LLM: Gemini → Groq → cache
+       files: data/label.json, data/cache.json, data/specialties.json · LLM: Gemini → Groq → cache
 ```
 
 - The frontend never makes decisions; it displays API results.
@@ -74,9 +77,9 @@ React (Vite) → FastAPI → core intelligence layer → in-memory doctor state
 | --- | --- | --- |
 | id | string | e.g. `dr_patel` |
 | name | string | |
-| specialty | string | e.g. `endocrinology` |
-| conditions | string[] | practice-level only; must be keys of the §6 condition map |
-| interests | string[] | must be approved topics (§6) |
+| specialty | string | e.g. `endocrinology`; must be a configured specialty (§6), matched trimmed and case-insensitive, stored as sent |
+| conditions | string[] | practice-level only; must be conditions of the doctor's specialty (§6) |
+| interests | string[] | must be topics of the doctor's specialty (§6) |
 | frequency | `daily` \| `weekly` | stored and displayed; not enforced in MVP |
 | topics | map topic → number | scores |
 | muted | string[] | |
@@ -135,6 +138,9 @@ Empty when `LLM_MODE=off`.
 ### 5.4 Files
 - `backend/data/label.json`: `drug`, `approved_topics[]`, `sentences[]` (verbatim label text)
 - `backend/data/cache.json`: `cards[]` in the card format, in the order the picker uses
+- `backend/data/specialties.json`: `specialties[]`, each with `value`, `label`, `conditions[]`
+  (`value`, `label`, `topic`), `topics[]` (`value`, `label`), `explorer_candidates[]`, `blocked`
+  (topic → reason), `brand` (drug or null), `label_cards` (bool), `fallback[]`. Checked at startup (§6).
 
 ### 5.5 Placeholder data (Checkpoint 3 only; replaced in Checkpoint 4)
 Allowed and required for Checkpoint 3. Every placeholder card has title
@@ -157,7 +163,24 @@ Studies: source `PubMed`, link `https://pubmed.ncbi.nlm.nih.gov/`, claims `[]`.
 
 ## 6. Topics
 
-**Approved topics (Ozempic):**
+Topics are configured per specialty in `backend/data/specialties.json` and loaded at startup; logic reads
+the doctor's specialty config, never hard-coded lists. The server refuses to start if the file is
+inconsistent: every condition maps to one of the specialty's topics; explorer candidates are exactly the
+topics followed by the blocked topics; the fallback is within the candidates; and a specialty with label
+cards has exactly `label.json`'s `approved_topics`, in order.
+
+| Setting | endocrinology (Dr. Patel) | dermatology (Dr. Evan) |
+| --- | --- | --- |
+| Conditions → topic | `type 2 diabetes` → glycemic control ("Type 2 diabetes (T2D)"); `chronic kidney disease` → kidney outcomes ("Chronic kidney disease (CKD)") | `plaque psoriasis` → psoriasis ("Plaque psoriasis"); `atopic dermatitis` → atopic dermatitis ("Atopic dermatitis (eczema)"); `hidradenitis suppurativa` → hidradenitis suppurativa ("Hidradenitis suppurativa (HS)") |
+| Topics | the Ozempic approved topics below | psoriasis, atopic dermatitis, hidradenitis suppurativa, psoriatic arthritis |
+| Explorer candidates | topics + `weight management` | topics |
+| Blocked | `weight management` → `outside Ozempic approved uses → route to medical information` | none |
+| Brand / label cards | ozempic / yes | none / no (never receives label cards) |
+| Fallback suggestions | `["cardio-kidney-metabolic care", "weight management"]` | `["psoriatic arthritis", "psoriasis"]` |
+
+Each condition and topic also has a display label (`GET /specialties`, §10).
+
+**Approved topics (Ozempic, endocrinology):**
 `glycemic control`, `cardiovascular outcomes`, `kidney outcomes`, `ozempic safety`,
 `cardio-kidney-metabolic care`
 
@@ -187,8 +210,9 @@ approved topics, cannot be onboarded yet, and are never picked for Dr. Patel):
 ## 7. Intelligence Rules
 
 ### 7.1 Onboarding
-Conditions map to topics via §6; interests are used as-is. Every starting topic = 1.
-Unknown condition or non-approved interest → rejected (API: 422).
+The specialty must be configured (§6; trimmed, case-insensitive), else `Unsupported specialty: <value>`
+(API: 422). Conditions map to topics via that specialty's map; interests are used as-is. Every starting
+topic = 1. A condition or interest outside that specialty → rejected (API: 422, same messages as before).
 
 ### 7.2 Scorer
 - Reply `yes` → +1, `not_interested` → −1, `no_reply` → −0.25
@@ -199,7 +223,8 @@ Unknown condition or non-approved interest → rejected (API: 422).
 
 ### 7.3 Picker
 Candidates exclude cards already sent or blocked.
-1. **Label cards first:** a label card qualifies if any of its topics is an unmuted doctor topic.
+1. **Label cards first** (only for specialties with `label_cards: true`; others never receive label cards):
+   a label card qualifies if any of its topics is an unmuted doctor topic.
    Multiple label cards → cache file order. A label card is "picked for" its **first** topic.
 2. **Otherwise, by topic:** rank unmuted doctor topics by score (highest first). Ties: topics never
    picked rank before picked ones; among picked topics, the one with the smallest `last_picked`
@@ -212,7 +237,8 @@ Candidates exclude cards already sent or blocked.
 6. Nothing left → no card (`null`).
 
 ### 7.4 Guard
-- Every sentence in `claims` must exactly equal a sentence in `label.json`, after trimming
+- Every sentence in `claims` must exactly equal a sentence in `label.json` (for a specialty without
+  label cards there is no label, so any claim is blocked), after trimming
   leading/trailing whitespace. Otherwise block with reason `Unsupported claim: <sentence>`.
 - Cards with no claims pass with reason `Title + link only`; label cards that pass use
   `Claims match label`.
@@ -221,11 +247,12 @@ Candidates exclude cards already sent or blocked.
 - After a reply, check the replied card's topics in their card order. A topic is checked if its score
   is **≥ 3** and it is not in `explored`.
 - Each checked topic is added to `explored` (its one chance is used, even if nothing is offered).
-- Suggestions: 2 related topics from the candidate list, from the LLM (§8); fixed fallback
-  `["cardio-kidney-metabolic care", "weight management"]` when `LLM_MODE=off` or all providers fail.
-- Processing suggestions in order: skip topics the doctor has or has muted; topics not approved →
-  logged `topic_blocked` with reason `outside Ozempic approved uses → route to medical information`;
-  the first remaining approved topic becomes the offer (logged `topic_offered`,
+- Suggestions: 2 related topics from the specialty's explorer candidates, from the LLM (§8); the
+  specialty's fixed fallback (§6) when `LLM_MODE=off` or all providers fail.
+- Processing suggestions in order: skip topics the doctor has or has muted; topics outside the
+  specialty's topics (its blocked topics) → logged `topic_blocked` with that topic's configured reason
+  (endocrinology: `outside Ozempic approved uses → route to medical information`);
+  the first remaining specialty topic becomes the offer (logged `topic_offered`,
   set as `pending_offer`). Remaining suggestions are still checked for blocking and logging.
 - Stop after the first topic that produces an offer. At most one offer per reply.
 - If `pending_offer` is already set, do not create a new offer (blocked topics are still logged).
@@ -327,6 +354,7 @@ All request/response bodies use Pydantic models with examples (visible in Swagge
 | Method | Path | Request | Response |
 | --- | --- | --- | --- |
 | GET | /health | — | `{ ok: true }` |
+| GET | /specialties | — | `[{ value, label, conditions: [{value, label}], topics: [{value, label}] }]` — the configured specialties (§6), for the entry page |
 | POST | /onboard | id, name, specialty, conditions, interests, frequency | public profile (§5.1) |
 | POST | /send/{doctor_id} | — | `{ card: Card \| null }` — runs the picker and guard (§7.3–7.4) and sends the next card |
 | GET | /inbox/{doctor_id} | — | `{ messages: Message[], active: Message \| null }` — no side effects |
@@ -339,7 +367,7 @@ All request/response bodies use Pydantic models with examples (visible in Swagge
 
 Errors:
 - Unknown doctor → 404
-- `/onboard` validation failure (§7.1) → 422
+- `/onboard` validation failure (§7.1) → 422, including `Unsupported specialty: <value>`
 - `/reply`: `card_id` ≠ `last_card_id`, or already answered → 400
 - `/topic-reply`: `topic` ≠ `pending_offer` → 400
 - `/send`: doctor has an unanswered card or a pending topic offer → 400

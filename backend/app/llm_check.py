@@ -15,12 +15,14 @@ SPECIALTY = "endocrinology"
 LIKED_TOPIC = "kidney outcomes"
 CURRENT_TOPICS = ["glycemic control", "kidney outcomes", "ozempic safety"]
 UNREACHABLE_REDIS = "rediss://127.0.0.1:1"
+CANDIDATES = core.SPECIALTIES[SPECIALTY]["explorer_candidates"]
+FALLBACK = core.SPECIALTIES[SPECIALTY]["fallback"]
 
 
 def own_key():
     models = {provider: os.getenv(llm.MODEL_NAMES[provider]) or llm.DEFAULT_MODELS[provider]
               for provider in llm.DEFAULT_MODELS}
-    key = llm.cache_key(SPECIALTY, LIKED_TOPIC, CURRENT_TOPICS, core.CANDIDATE_TOPICS, models)
+    key = llm.cache_key(SPECIALTY, LIKED_TOPIC, CURRENT_TOPICS, CANDIDATES, models)
     assert key.startswith(llm.CACHE_PREFIX)
     return key
 
@@ -35,12 +37,12 @@ def run_case(title, hidden_keys=(), clear_cache=True):
     for name in hidden_keys:
         os.environ.pop(name, None)
     tried = []
-    topics, by = llm.suggest_related(SPECIALTY, LIKED_TOPIC, CURRENT_TOPICS, core.CANDIDATE_TOPICS, tried=tried)
+    topics, by = llm.suggest_related(SPECIALTY, LIKED_TOPIC, CURRENT_TOPICS, CANDIDATES, FALLBACK, tried=tried)
     print(f"\n== {title}")
     print(f"   by:              {by}")
     print(f"   suggestions:     {topics}")
     print(f"   providers_tried: {tried}")
-    assert 1 <= len(topics) <= 2 and all(topic in core.CANDIDATE_TOPICS for topic in topics)
+    assert 1 <= len(topics) <= 2 and all(topic in CANDIDATES for topic in topics)
     return by, tried
 
 

@@ -1,0 +1,58 @@
+{
+  "specialties": [
+    {
+      "value": "endocrinology",
+      "label": "Endocrinology",
+      "conditions": [
+        {"value": "type 2 diabetes", "label": "Type 2 diabetes (T2D)", "topic": "glycemic control"},
+        {"value": "chronic kidney disease", "label": "Chronic kidney disease (CKD)", "topic": "kidney outcomes"}
+      ],
+      "topics": [
+        {"value": "glycemic control", "label": "Glycemic control"},
+        {"value": "cardiovascular outcomes", "label": "Cardiovascular outcomes"},
+        {"value": "kidney outcomes", "label": "Kidney outcomes"},
+        {"value": "ozempic safety", "label": "Ozempic safety"},
+        {"value": "cardio-kidney-metabolic care", "label": "Cardio-kidney-metabolic care"}
+      ],
+      "explorer_candidates": [
+        "glycemic control",
+        "cardiovascular outcomes",
+        "kidney outcomes",
+        "ozempic safety",
+        "cardio-kidney-metabolic care",
+        "weight management"
+      ],
+      "blocked": {
+        "weight management": "outside Ozempic approved uses → route to medical information"
+      },
+      "brand": "ozempic",
+      "label_cards": true,
+      "fallback": ["cardio-kidney-metabolic care", "weight management"]
+    },
+    {
+      "value": "dermatology",
+      "label": "Dermatology",
+      "conditions": [
+        {"value": "plaque psoriasis", "label": "Plaque psoriasis", "topic": "psoriasis"},
+        {"value": "atopic dermatitis", "label": "Atopic dermatitis (eczema)", "topic": "atopic dermatitis"},
+        {"value": "hidradenitis suppurativa", "label": "Hidradenitis suppurativa (HS)", "topic": "hidradenitis suppurativa"}
+      ],
+      "topics": [
+        {"value": "psoriasis", "label": "Psoriasis"},
+        {"value": "atopic dermatitis", "label": "Atopic dermatitis"},
+        {"value": "hidradenitis suppurativa", "label": "Hidradenitis suppurativa"},
+        {"value": "psoriatic arthritis", "label": "Psoriatic arthritis"}
+      ],
+      "explorer_candidates": [
+        "psoriasis",
+        "atopic dermatitis",
+        "hidradenitis suppurativa",
+        "psoriatic arthritis"
+      ],
+      "blocked": {},
+      "brand": null,
+      "label_cards": false,
+      "fallback": ["psoriatic arthritis", "psoriasis"]
+    }
+  ]
+}

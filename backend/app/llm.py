@@ -1,6 +1,6 @@
 """LLM suggestions for the explorer (blueprint §8). The LLM only suggests; core.py decides.
 
-Order: Redis cache → Gemini → Groq → fixed fallback. We wait at most 5 seconds per provider
+Order: Redis cache → Gemini → Groq → the specialty's fixed fallback. We wait at most 5 seconds per provider
 and 2 seconds per Redis call; every answer, cached or fresh, is validated before use.
 Settings come from backend/.env; values already set in the environment win, so a script or
 shell can force LLM_MODE=off. Never prints or logs keys, REDIS_URL, or error text.
@@ -20,7 +20,6 @@ from redis.retry import Retry
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-FALLBACK = ["cardio-kidney-metabolic care", "weight management"]
 TIMEOUT_SECONDS = 5
 GROQ_MAX_TOKENS = 100  # the answer is ~18 tokens; without a cap Groq assumes ~1300 and the free tier (1000/min) refuses
 GEMINI_SERVER_DEADLINE_MS = 10_000  # Gemini rejects deadlines under 10 s; our 5 s limit is enforced below
@@ -39,13 +38,14 @@ REDIS_TIMEOUT_SECONDS = 2
 REDIS_CLIENTS = {}  # one reusable client per REDIS_URL (TLS setup is slow)
 
 
-def suggest_related(specialty, liked_topic, current_topics, candidates, tried=None):
-    """Return (topics, by). If `tried` is a list, one {"provider", "result"} entry is appended
-    per source attempted: redis → hit, miss, or unreachable; providers → ok, timeout,
+def suggest_related(specialty, liked_topic, current_topics, candidates, fallback, tried=None):
+    """Return (topics, by); `fallback` (the specialty's list) when LLM_MODE is off or every
+    provider fails. If `tried` is a list, one {"provider", "result"} entry is appended per source
+    attempted: redis → hit, miss, or unreachable; providers → ok, timeout, rate_limited,
     invalid_output, or error."""
     tried = [] if tried is None else tried
     if os.getenv("LLM_MODE", "off") != "live":
-        return list(FALLBACK), "fallback"
+        return list(fallback), "fallback"
 
     models = {provider: os.getenv(MODEL_NAMES[provider]) or DEFAULT_MODELS[provider] for provider in DEFAULT_MODELS}
     key = cache_key(specialty, liked_topic, current_topics, candidates, models)
@@ -61,7 +61,7 @@ def suggest_related(specialty, liked_topic, current_topics, candidates, tried=No
         if lookup == "miss":  # only write if Redis just answered; skips a second timeout
             cache_set(key, topics)
         return topics, provider
-    return list(FALLBACK), "fallback"  # never cached
+    return list(fallback), "fallback"  # never cached
 
 
 def ask_providers(prompt, models, candidates, tried):

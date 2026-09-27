@@ -15,19 +15,16 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 LABEL = json.loads((DATA_DIR / "label.json").read_text(encoding="utf-8"))
 CARDS = json.loads((DATA_DIR / "cache.json").read_text(encoding="utf-8"))["cards"]
 CARDS_BY_ID = {card["id"]: card for card in CARDS}
-
-APPROVED_TOPICS = LABEL["approved_topics"]
-CANDIDATE_TOPICS = APPROVED_TOPICS + ["weight management"]  # what the explorer may suggest (§6)
 LABEL_SENTENCES = {sentence.strip() for sentence in LABEL["sentences"]}
-CONDITION_TOPICS = {
-    "type 2 diabetes": "glycemic control",
-    "chronic kidney disease": "kidney outcomes",
+# Per-specialty topics, conditions, explorer candidates, blocked topics, fallback (§6)
+SPECIALTIES = {
+    specialty["value"]: specialty
+    for specialty in json.loads((DATA_DIR / "specialties.json").read_text(encoding="utf-8"))["specialties"]
 }
 
 SCORE_CHANGE = {"yes": 1, "not_interested": -1, "no_reply": -0.25}
 MUTE_AT = -2
 EXPLORE_AT = 3
-BLOCKED_TOPIC_REASON = "outside Ozempic approved uses → route to medical information"
 
 DOCTORS = {}
 EVENTS = []
@@ -63,22 +60,80 @@ def events(since=0):
     return [event for event in EVENTS if event["t"] > since]
 
 
+# ---------- specialties ----------
+
+def topic_values(config):
+    return [topic["value"] for topic in config["topics"]]
+
+
+def condition_topics(config):
+    return {condition["value"]: condition["topic"] for condition in config["conditions"]}
+
+
+def check_specialties():
+    """Stop at startup if specialties.json is inconsistent (§6)."""
+    for value, config in SPECIALTIES.items():
+        topics = topic_values(config)
+        problems = [
+            not set(condition_topics(config).values()) <= set(topics) and "a condition maps to an unknown topic",
+            config["explorer_candidates"] != topics + list(config["blocked"])
+            and "explorer candidates must be the topics, then the blocked topics",
+            not set(config["fallback"]) <= set(config["explorer_candidates"]) and "fallback outside the candidates",
+        ]
+        if config["label_cards"] and topics != LABEL["approved_topics"]:
+            problems.append("topics must equal label.json approved_topics")
+        problems = [problem for problem in problems if problem]
+        if problems:
+            raise ValueError(f"specialties.json, {value}: {'; '.join(problems)}")
+
+
+check_specialties()
+
+
+def specialty_config(specialty):
+    """The configured specialty for this value (trimmed, case-insensitive), else 422."""
+    config = SPECIALTIES.get(specialty.strip().lower())
+    if config is None:
+        raise Invalid(f"Unsupported specialty: {specialty}")
+    return config
+
+
+def config_of(doctor):
+    return SPECIALTIES[doctor["specialty_key"]]
+
+
+def specialties():
+    """GET /specialties: each specialty with its conditions and topics (value + label), for the entry page."""
+    return [
+        {
+            "value": config["value"],
+            "label": config["label"],
+            "conditions": [{"value": c["value"], "label": c["label"]} for c in config["conditions"]],
+            "topics": [{"value": t["value"], "label": t["label"]} for t in config["topics"]],
+        }
+        for config in SPECIALTIES.values()
+    ]
+
+
 # ---------- onboarding and profile ----------
 
 def onboard(doctor_id, name, specialty, conditions, interests, frequency):
+    config = specialty_config(specialty)
+    mapped = condition_topics(config)
     for condition in conditions:
-        if condition not in CONDITION_TOPICS:
+        if condition not in mapped:
             raise Invalid(f"Unknown condition: {condition}")
     for interest in interests:
-        if interest not in APPROVED_TOPICS:
+        if interest not in topic_values(config):
             raise Invalid(f"Interest is not an approved topic: {interest}")
 
-    starting = [CONDITION_TOPICS[condition] for condition in conditions] + list(interests)
+    starting = [mapped[condition] for condition in conditions] + list(interests)
     forget_events(doctor_id)  # re-onboarding resets the doctor, including their thread
     DOCTORS[doctor_id] = {
         "id": doctor_id,
         "name": name,
-        "specialty": specialty,
+        "specialty": specialty,  # stored as sent (shown in ION and sent to the LLM)
+        "specialty_key": config["value"],
         "conditions": list(conditions),
         "interests": list(interests),
         "frequency": frequency,
@@ -123,10 +178,12 @@ def profile(doctor_id):
 
 # ---------- guard and picker ----------
 
-def guard(card):
-    """Return (passed, reason). Every claim must equal a label sentence (§7.4)."""
+def guard(card, config):
+    """Return (passed, reason). Every claim must equal a label sentence (§7.4).
+    A specialty without label cards has no label, so any claim is blocked."""
+    sentences = LABEL_SENTENCES if config["label_cards"] else set()
     for claim in card["claims"]:
-        if claim.strip() not in LABEL_SENTENCES:
+        if claim.strip() not in sentences:
             return False, f"Unsupported claim: {claim}"
     if card["claims"]:
         return True, "Claims match label"
@@ -156,14 +213,17 @@ def candidates(doctor):
 
 
 def pick_order(doctor):
-    """Yield (card, picked-for topic) in the order the picker tries them (§7.3)."""
+    """Yield (card, picked-for topic) in the order the picker tries them (§7.3).
+    Label cards only for specialties that allow them."""
+    labels_allowed = config_of(doctor)["label_cards"]
     active = set(rank_topics(doctor))
-    for card in candidates(doctor):
-        if card["kind"] == "label" and active.intersection(card["topics"]):
-            yield card, card["topics"][0]
+    if labels_allowed:
+        for card in candidates(doctor):
+            if card["kind"] == "label" and active.intersection(card["topics"]):
+                yield card, card["topics"][0]
     for topic in rank_topics(doctor):
         for card in candidates(doctor):
-            if topic in card["topics"]:
+            if topic in card["topics"] and (labels_allowed or card["kind"] != "label"):
                 yield card, topic
 
 
@@ -188,7 +248,7 @@ def next_card(doctor_id):
 def pick_and_send(doctor, trigger):
     """Send the first picked card that passes the guard; blocked cards are logged. None if no card is left."""
     for card, topic in pick_order(doctor):
-        passed, reason = guard(card)
+        passed, reason = guard(card, config_of(doctor))
         if not passed:
             doctor["blocked"].append(card["id"])
             log(doctor["id"], "card_blocked", card=card["id"], reason=reason)
@@ -257,6 +317,7 @@ def mute_low_topics(doctor, card):
 
 def explore(doctor, card):
     """Check the replied card's topics; return the offered topic or None (§7.5)."""
+    config = config_of(doctor)
     for topic in card["topics"]:
         if topic not in doctor["topics"] or topic in doctor["explored"]:
             continue
@@ -265,7 +326,8 @@ def explore(doctor, card):
         doctor["explored"].append(topic)
         tried = []
         suggestions, by = llm.suggest_related(
-            doctor["specialty"], topic, list(doctor["topics"]), CANDIDATE_TOPICS, tried=tried,
+            doctor["specialty"], topic, list(doctor["topics"]), config["explorer_candidates"],
+            config["fallback"], tried=tried,
         )
         offer = offer_from(doctor, suggestions, by, tried)
         if offer:
@@ -274,13 +336,15 @@ def explore(doctor, card):
 
 
 def offer_from(doctor, suggestions, by, tried):
-    """Plain-code rules applied to the suggestions: skip, block, or offer (§7.5)."""
+    """Plain-code rules applied to the suggestions: skip, block, or offer (§7.5).
+    A suggestion outside the specialty's topics is one of its blocked topics (checked at startup)."""
+    config = config_of(doctor)
     offer = None
     for topic in suggestions:
         if topic in doctor["topics"]:  # includes muted topics
             continue
-        if topic not in APPROVED_TOPICS:
-            log(doctor["id"], "topic_blocked", topic=topic, reason=BLOCKED_TOPIC_REASON,
+        if topic not in topic_values(config):
+            log(doctor["id"], "topic_blocked", topic=topic, reason=config["blocked"][topic],
                 by=by, providers_tried=tried)
             continue
         if offer is None and doctor["pending_offer"] is None:

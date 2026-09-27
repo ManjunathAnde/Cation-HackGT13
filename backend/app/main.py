@@ -64,6 +64,22 @@ def examples(*values):
 
 # ---------- models ----------
 
+class SpecialtyOption(BaseModel):
+    model_config = examples({"value": "type 2 diabetes", "label": "Type 2 diabetes (T2D)"})
+
+    value: str
+    label: str
+
+
+class Specialty(BaseModel):
+    model_config = examples(core.specialties()[0])
+
+    value: str
+    label: str
+    conditions: list[SpecialtyOption]
+    topics: list[SpecialtyOption]
+
+
 class HealthResponse(BaseModel):
     model_config = examples({"ok": True})
 
@@ -247,6 +263,11 @@ def validation_failed(request: Request, exc: RequestValidationError):
 @app.get("/health", response_model=HealthResponse)
 def health():
     return HealthResponse(ok=True)
+
+
+@app.get("/specialties", response_model=list[Specialty], summary="List the supported specialties")
+def specialties():
+    return core.specialties()
 
 
 @app.post("/onboard", response_model=Profile, summary="Onboard a doctor (re-onboarding resets them)")
