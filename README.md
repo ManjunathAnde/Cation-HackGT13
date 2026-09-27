@@ -1,4 +1,4 @@
-# Cation
+# Cation (Project in Expand Cache branch}
 
 HackGT 13, Impiricus challenge. An agent that sends doctors research cards over RCS,
 learns from their Yes / Not interested replies, and feeds the learned profile to a
