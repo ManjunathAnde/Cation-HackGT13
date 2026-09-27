@@ -1,12 +1,12 @@
-import { topicLabel } from "../../format.js";
+import { joinWithAnd, topicLabel } from "../../format.js";
 import { useTopicLabels } from "../../specialties.js";
 import "./researchCard.css";
 
 const SOURCE_LABELS = { label: "FDA label · DailyMed", study: "Study · PubMed" };
 
 // A research card as the doctor sees it (Brief and Vault). `children` go under the footer
-// (the Brief's answer buttons).
-export default function ResearchCard({ card, children }) {
+// (the Brief's answer buttons). `related` ({ topics, reason }, Brief only) is shown above the title.
+export default function ResearchCard({ card, related, children }) {
   const labels = useTopicLabels();
   return (
     <div className="brief-card">
@@ -20,6 +20,12 @@ export default function ResearchCard({ card, children }) {
         </div>
         <span className="brief-card__source">{SOURCE_LABELS[card.kind]}</span>
       </div>
+      {related && (
+        <p className="brief-card__related">
+          Related to what you liked: {joinWithAnd(related.topics.map((topic) => topicLabel(topic, labels)))} —{" "}
+          {related.reason}
+        </p>
+      )}
       <h2 className="brief-card__title">{card.title}</h2>
       {card.kind === "label" &&
         card.claims.map((claim) => (

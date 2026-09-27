@@ -46,7 +46,8 @@ PROFILE_EXAMPLE = {
     "muted": [],
     "ion": {"pick": "General update for endocrinology", "why": "specialty only"},
 }
-CARD_MESSAGE_EXAMPLE = {"type": "card", "t": 1790000000.0, "card": CARD_EXAMPLE, "answer": "yes"}
+RELATED_EXAMPLE = {"topics": ["ozempic safety"], "reason": "A new topic related to what you liked."}
+CARD_MESSAGE_EXAMPLE = {"type": "card", "t": 1790000000.0, "card": CARD_EXAMPLE, "answer": "yes", "related": None}
 OFFER_MESSAGE_EXAMPLE = {"type": "offer", "t": 1790000001.0, "topic": "cardio-kidney-metabolic care", "answer": None}
 EVENT_EXAMPLE = {
     "t": 1790000000.0,
@@ -138,13 +139,23 @@ class SendResponse(BaseModel):
     card: Card | None
 
 
+class Related(BaseModel):
+    """Why a card was sent after a Yes-streak switch (Checkpoint 11e): the liked topics and the reason."""
+
+    model_config = examples(RELATED_EXAMPLE)
+
+    topics: list[str]
+    reason: str
+
+
 class CardMessage(BaseModel):
-    model_config = examples(CARD_MESSAGE_EXAMPLE)
+    model_config = examples(CARD_MESSAGE_EXAMPLE, {**CARD_MESSAGE_EXAMPLE, "related": RELATED_EXAMPLE})
 
     type: Literal["card"]
     t: float
     card: Card
     answer: Literal["yes", "not_interested", "no_reply"] | None
+    related: Related | None = None
 
 
 class OfferMessage(BaseModel):

@@ -22,7 +22,7 @@ export default function CardMessage({ message, active, onAnswered }) {
   return (
     <article className="message" data-card={card.id}>
       <AgentLine>I found this for your brief. Is it relevant to your practice?</AgentLine>
-      <ResearchCard card={card}>
+      <ResearchCard card={card} related={message.related}>
         {active && <AnswerButtons options={CARD_OPTIONS} submit={submit} onDone={onAnswered} />}
       </ResearchCard>
       {message.answer && <ReplyBubble type="card" answer={message.answer} />}

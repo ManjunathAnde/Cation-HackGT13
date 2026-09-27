@@ -3,7 +3,7 @@
 Each checkpoint is a small, working step. A checkpoint is **done** only when its test passes and its
 notes are written.
 
-**Build order:** 1–5 → 10a → 10b → 6 → 7 → 8 → 9 → 11 → 11c → 12. Checkpoints keep their numbers; sections
+**Build order:** 1–5 → 10a → 10b → 6 → 7 → 8 → 9 → 11 → 11c → 11d → 11e → 12. Checkpoints keep their numbers; sections
 below follow the build order. Checkpoint 7 (Impiricus console) absorbed the metrics page and the mock
 ION panel; 8 is the Brief and 9 the Vault; 11 is now automatic sending; 11c adds dermatology.
 
@@ -156,6 +156,19 @@ a test backend with `LLM_MODE=off` → `API PATH OK`; `python -m app.derm_check`
 clinical dermatology cards, the explorer offers `psoriatic arthritis` from the dermatology fallback, no
 blocks; unsupported specialty and dermatology + Ozempic interest → 422; Dr. Patel's path still passes →
 `DERM CHECK OK`.
+
+## Checkpoint 11e — New picking flow
+**Goal:** topics run at most two cards in a row; at each switch point (`run_limit`, `yes_streak`,
+`topic_exhausted`) the AI chooses the next topic from plain-code-validated candidates (Gemini → Groq, 3 s
+each) and plain code falls back; after two Yes answers in a row a new related topic is preferred and added
+at score 1; cards in that run carry `related`. The Yes-streak switch replaces the explorer offer (offers
+kept only for compatibility). Console timeline shows "Next topic: …" and "Sent related: …"; the Brief
+shows "Related to what you liked: …". Blueprint §1 principle updated.
+
+**Test:** from `backend/`: `python -m app.demo_run` (AUTO_SEND on and off) → `DEMO PATH OK` (the §12
+Dr. Patel path: engagement 86); `python -m app.api_check` against a test backend with `LLM_MODE=off`,
+auto-send on and off → `API PATH OK`; `python -m app.derm_check` → Dr. Evan's §12 path (engagement 85),
+only dermatology cards → `DERM CHECK OK`; `npm run build`.
 
 ## Checkpoint 12 — Demo freeze
 **Goal:** nothing new, only reliability.

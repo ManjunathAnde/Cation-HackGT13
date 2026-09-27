@@ -16,7 +16,8 @@ LABEL = json.loads((DATA_DIR / "label.json").read_text(encoding="utf-8"))
 CARDS = json.loads((DATA_DIR / "cache.json").read_text(encoding="utf-8"))["cards"]
 CARDS_BY_ID = {card["id"]: card for card in CARDS}
 LABEL_SENTENCES = {sentence.strip() for sentence in LABEL["sentences"]}
-# Per-specialty topics, conditions, explorer candidates, blocked topics, fallback (§6)
+# Per-specialty topics, conditions, blocked topics (§6). explorer_candidates and fallback are DORMANT
+# since Checkpoint 11e (only llm_check uses them) but still checked at startup.
 SPECIALTIES = {
     specialty["value"]: specialty
     for specialty in json.loads((DATA_DIR / "specialties.json").read_text(encoding="utf-8"))["specialties"]
@@ -24,7 +25,16 @@ SPECIALTIES = {
 
 SCORE_CHANGE = {"yes": 1, "not_interested": -1, "no_reply": -0.25}
 MUTE_AT = -2
-EXPLORE_AT = 3
+RUN_LIMIT = 2  # at most two cards in a row from one topic (§7.3)
+YES_STREAK = 2  # two Yes answers in a row trigger a switch to a related topic (§7.3)
+RECENT_CARDS = 4  # answered cards shown to the AI at a switch point
+# Reasons when plain code chooses the topic (LLM off, or every provider failed)
+FALLBACK_REASONS = {
+    "run_limit": "Your next highest-scoring topic.",
+    "topic_exhausted": "Your next highest-scoring topic.",
+    "yes_streak_new": "A new topic related to what you liked.",
+    "yes_streak_held": "One of your top-scoring topics.",
+}
 
 DOCTORS = {}
 EVENTS = []
@@ -144,8 +154,11 @@ def onboard(doctor_id, name, specialty, conditions, interests, frequency):
         "last_card_id": None,
         "answered": [],
         "last_picked": {},
-        "explored": [],
-        "pending_offer": None,
+        "picked": [],  # the topic each sent card was picked for, in send order
+        "replies": [],  # card answers in order (parallel to "answered")
+        "streak_from": 0,  # len(replies) at the last switch: the Yes streak counts from here
+        "run_related": None,  # {"topics", "reason"} for cards in a run started by a Yes-streak switch
+        "pending_offer": None,  # kept for /topic-reply compatibility; nothing creates offers since 11e
         "added": [],
         "vault": [],
     }
@@ -212,19 +225,159 @@ def candidates(doctor):
     ]
 
 
-def pick_order(doctor):
-    """Yield (card, picked-for topic) in the order the picker tries them (§7.3).
-    Label cards only for specialties that allow them."""
+def active_topics(doctor):
+    return [topic for topic in doctor["topics"] if topic not in doctor["muted"]]
+
+
+def topic_cards(doctor, topic):
+    """Unsent, unblocked cards for `topic`, in cache order (label cards only where allowed)."""
     labels_allowed = config_of(doctor)["label_cards"]
-    active = set(rank_topics(doctor))
-    if labels_allowed:
-        for card in candidates(doctor):
-            if card["kind"] == "label" and active.intersection(card["topics"]):
-                yield card, card["topics"][0]
+    return [
+        card for card in candidates(doctor)
+        if topic in card["topics"] and (labels_allowed or card["kind"] != "label")
+    ]
+
+
+def first_passing(doctor, cards):
+    """(card, guard reason) for the first card that passes the guard; failures are blocked and logged."""
+    config = config_of(doctor)
+    for card in cards:
+        passed, reason = guard(card, config)
+        if passed:
+            return card, reason
+        doctor["blocked"].append(card["id"])
+        log(doctor["id"], "card_blocked", card=card["id"], reason=reason)
+    return None, None
+
+
+def current_run(doctor):
+    """(topic of the last sent card, how many cards in a row it has had), or (None, 0)."""
+    if not doctor["picked"]:
+        return None, 0
+    topic = doctor["picked"][-1]
+    length = 0
+    for picked in reversed(doctor["picked"]):
+        if picked != topic:
+            break
+        length += 1
+    return topic, length
+
+
+def yes_streak(doctor):
+    """Yes answers in a row since the last switch."""
+    streak = 0
+    for answer in reversed(doctor["replies"][doctor["streak_from"]:]):
+        if answer != "yes":
+            break
+        streak += 1
+    return streak
+
+
+def pick_and_send(doctor, trigger):
+    """Send the next card (§7.3); `trigger` is how it is sent (auto or manual). None if nothing is left.
+    1. A label card first where allowed. 2. No card sent yet: today's ranking, no AI.
+    3. Within a run (at most RUN_LIMIT in a row), the same topic. 4. At a switch point, choose a topic."""
+    card, reason = first_passing(doctor, topic_label_cards(doctor))
+    if card:
+        doctor["run_related"] = None
+        return send(doctor, card, card["topics"][0], reason, trigger)
+    topic, length = current_run(doctor)
+    if topic is None:
+        return send_first(doctor, trigger)
+    switch = "yes_streak" if yes_streak(doctor) >= YES_STREAK else "run_limit" if length >= RUN_LIMIT else None
+    if switch is None:
+        card, reason = first_passing(doctor, topic_cards(doctor, topic)) if topic not in doctor["muted"] else (None, None)
+        if card:
+            return send(doctor, card, topic, reason, trigger, doctor["run_related"])
+        switch = "topic_exhausted"
+    return switch_topic(doctor, switch, topic, length, trigger)
+
+
+def topic_label_cards(doctor):
+    """Unsent label cards with an unmuted doctor topic (only where label cards are allowed)."""
+    if not config_of(doctor)["label_cards"]:
+        return []
+    active = set(active_topics(doctor))
+    return [card for card in candidates(doctor) if card["kind"] == "label" and active.intersection(card["topics"])]
+
+
+def send_first(doctor, trigger):
+    """The first card when no label card applies: today's topic ranking, no AI (§7.3)."""
     for topic in rank_topics(doctor):
-        for card in candidates(doctor):
-            if topic in card["topics"] and (labels_allowed or card["kind"] != "label"):
-                yield card, topic
+        card, reason = first_passing(doctor, topic_cards(doctor, topic))
+        if card:
+            return send(doctor, card, topic, reason, trigger)
+    return None
+
+
+def switch_candidates(doctor, current, length):
+    """Unmuted doctor topics plus the specialty's other topics, with unsent cards, not blocked, and not
+    a third card in a row (§7.3)."""
+    config = config_of(doctor)
+    others = [topic for topic in topic_values(config) if topic not in doctor["topics"]]
+    return [
+        topic for topic in active_topics(doctor) + others
+        if topic not in config["blocked"] and topic_cards(doctor, topic)
+        and not (topic == current and length >= RUN_LIMIT)
+    ]
+
+
+def fallback_order(doctor, allowed, current, switch):
+    """Plain-code order: highest score (topics not held count as 0), then least recently picked, then
+    name; other than the current topic unless nothing else is left. After a Yes streak, topics the
+    doctor doesn't hold come first."""
+    last_picked = doctor["last_picked"]
+    others = [topic for topic in allowed if topic != current] or list(allowed)
+    order = sorted(others, key=lambda t: (-doctor["topics"].get(t, 0), t in last_picked, last_picked.get(t, 0), t))
+    if switch == "yes_streak":
+        order = [t for t in order if t not in doctor["topics"]] + [t for t in order if t in doctor["topics"]]
+    return order
+
+
+def recent_cards(doctor):
+    """The last RECENT_CARDS answered cards as (title, topic picked for, answer), for the AI."""
+    cards = []
+    for card_id, answer in zip(doctor["answered"][-RECENT_CARDS:], doctor["replies"][-RECENT_CARDS:]):
+        topic = doctor["picked"][doctor["sent"].index(card_id)]
+        cards.append({"title": CARDS_BY_ID[card_id]["title"], "topic": topic, "answer": answer})
+    return cards
+
+
+def switch_topic(doctor, switch, current, length, trigger):
+    """A switch point: the AI chooses among validated candidates; plain code falls back (§7.3, §8).
+    Logs topic_chosen, adds a topic the doctor doesn't hold at score 1, then sends from it."""
+    config = config_of(doctor)
+    allowed = switch_candidates(doctor, current, length)
+    order = fallback_order(doctor, allowed, current, switch)
+    tried = []
+    chosen, reason, by, rejected = llm.choose_topic(
+        doctor["specialty"], recent_cards(doctor), dict(doctor["topics"]), allowed,
+        list(config["blocked"]), switch == "yes_streak", tried=tried,
+    )
+    for topic, provider in rejected:
+        log(doctor["id"], "topic_blocked", topic=topic, reason=config["blocked"][topic],
+            by=provider, providers_tried=tried)
+    for topic in ([chosen] if chosen else []) + [t for t in order if t != chosen]:
+        card, guard_reason = first_passing(doctor, topic_cards(doctor, topic))
+        if card:
+            break
+    else:
+        return None  # no candidate has a card that passes the guard: nothing is sent
+    if topic != chosen:
+        by = "fallback"
+        reason = FALLBACK_REASONS[switch if switch != "yes_streak" else
+                                  "yes_streak_new" if topic not in doctor["topics"] else "yes_streak_held"]
+    liked = []
+    for picked in doctor["picked"][-YES_STREAK:]:
+        if picked not in liked:
+            liked.append(picked)
+    if topic not in doctor["topics"]:
+        doctor["topics"][topic] = 1
+        doctor["added"].append(topic)
+    doctor["run_related"] = {"topics": liked, "reason": reason} if switch == "yes_streak" else None
+    doctor["streak_from"] = len(doctor["replies"])
+    log(doctor["id"], "topic_chosen", topic=topic, reason=reason, by=by, providers_tried=tried, trigger=switch)
+    return send(doctor, card, topic, guard_reason, trigger, doctor["run_related"])
 
 
 def waiting_reason(doctor):
@@ -237,7 +390,7 @@ def waiting_reason(doctor):
 
 
 def next_card(doctor_id):
-    """POST /send: the operator's manual send."""
+    """POST /send: the operator's manual send (same picker as auto-send)."""
     doctor = get_doctor(doctor_id)
     reason = waiting_reason(doctor)
     if reason:
@@ -245,24 +398,15 @@ def next_card(doctor_id):
     return pick_and_send(doctor, "manual")
 
 
-def pick_and_send(doctor, trigger):
-    """Send the first picked card that passes the guard; blocked cards are logged. None if no card is left."""
-    for card, topic in pick_order(doctor):
-        passed, reason = guard(card, config_of(doctor))
-        if not passed:
-            doctor["blocked"].append(card["id"])
-            log(doctor["id"], "card_blocked", card=card["id"], reason=reason)
-            continue
-        send(doctor, card, topic, reason, trigger)
-        return dict(card)
-    return None
-
-
-def send(doctor, card, topic, reason, trigger):
+def send(doctor, card, topic, reason, trigger, related=None):
     doctor["sent"].append(card["id"])
+    doctor["picked"].append(topic)
     doctor["last_picked"][topic] = len(doctor["sent"])
     doctor["last_card_id"] = card["id"]
-    log(doctor["id"], "card_sent", card=card["id"], title=card["title"], topic=topic, reason=reason, trigger=trigger)
+    details = {"related": related} if related else {}
+    log(doctor["id"], "card_sent", card=card["id"], title=card["title"], topic=topic, reason=reason,
+        trigger=trigger, **details)
+    return dict(card)
 
 
 # ---------- automatic sending ----------
@@ -289,14 +433,14 @@ def reply(doctor_id, card_id, answer):
 
     card = CARDS_BY_ID[card_id]
     doctor["answered"].append(card_id)
+    doctor["replies"].append(answer)
     update_scores(doctor, card, answer)
     log(doctor_id, "reply", card=card_id, answer=answer, scores=dict(doctor["topics"]))
     mute_low_topics(doctor, card)
     if answer == "yes" and card_id not in doctor["vault"]:
         doctor["vault"].append(card_id)
-    offer = explore(doctor, card)
-    result = {"offer": offer, "ion": ion(doctor)}
-    auto_send(doctor)  # skipped while the offer is pending
+    result = {"offer": None, "ion": ion(doctor)}  # nothing creates offers since Checkpoint 11e
+    auto_send(doctor)
     return result
 
 
@@ -313,46 +457,7 @@ def mute_low_topics(doctor, card):
             log(doctor["id"], "topic_muted", topic=topic)
 
 
-# ---------- explorer ----------
-
-def explore(doctor, card):
-    """Check the replied card's topics; return the offered topic or None (§7.5)."""
-    config = config_of(doctor)
-    for topic in card["topics"]:
-        if topic not in doctor["topics"] or topic in doctor["explored"]:
-            continue
-        if doctor["topics"][topic] < EXPLORE_AT:
-            continue
-        doctor["explored"].append(topic)
-        tried = []
-        suggestions, by = llm.suggest_related(
-            doctor["specialty"], topic, list(doctor["topics"]), config["explorer_candidates"],
-            config["fallback"], tried=tried,
-        )
-        offer = offer_from(doctor, suggestions, by, tried)
-        if offer:
-            return offer
-    return None
-
-
-def offer_from(doctor, suggestions, by, tried):
-    """Plain-code rules applied to the suggestions: skip, block, or offer (§7.5).
-    A suggestion outside the specialty's topics is one of its blocked topics (checked at startup)."""
-    config = config_of(doctor)
-    offer = None
-    for topic in suggestions:
-        if topic in doctor["topics"]:  # includes muted topics
-            continue
-        if topic not in topic_values(config):
-            log(doctor["id"], "topic_blocked", topic=topic, reason=config["blocked"][topic],
-                by=by, providers_tried=tried)
-            continue
-        if offer is None and doctor["pending_offer"] is None:
-            offer = topic
-            doctor["pending_offer"] = topic
-            log(doctor["id"], "topic_offered", topic=topic, by=by, providers_tried=tried)
-    return offer
-
+# ---------- topic offers (compatibility only: nothing creates offers since Checkpoint 11e) ----------
 
 def topic_reply(doctor_id, topic, answer):
     doctor = get_doctor(doctor_id)
@@ -392,7 +497,8 @@ def inbox(doctor_id):
     for event in doctor_events(doctor_id):
         if event["type"] == "card_sent":
             card = dict(CARDS_BY_ID[event["card"]])
-            messages.append({"type": "card", "t": event["t"], "card": card, "answer": None})
+            messages.append({"type": "card", "t": event["t"], "card": card, "answer": None,
+                             "related": event.get("related")})
         elif event["type"] == "reply":
             open_message(messages, "card", lambda m: m["card"]["id"] == event["card"])["answer"] = event["answer"]
         elif event["type"] == "topic_offered":

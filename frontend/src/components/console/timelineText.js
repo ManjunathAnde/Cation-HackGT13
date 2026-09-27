@@ -10,6 +10,11 @@ const BY_LABELS = { redis: "cache (Redis)", gemini: "Gemini", groq: "Groq", fall
 const REPLY_LABELS = { yes: "Yes, more on this", not_interested: "Not interested", no_reply: "No reply" };
 const ANSWER_LABELS = { yes: "Yes", no: "No thanks" };
 const SENT_LABELS = { auto: "Sent automatically", manual: "Sent by operator" };
+const SWITCH_LABELS = {
+  run_limit: "after 2 in a row",
+  yes_streak: "after 2 Yes",
+  topic_exhausted: "after the topic ran out",
+};
 
 // Card titles by id, from card_sent events, so replies can name the card.
 export function cardTitles(timeline) {
@@ -29,7 +34,13 @@ export function describe(event, titles, name, labels) {
     case "onboarded":
       return { text: `Onboarded — topics: ${Object.keys(event.topics || {}).map(topic).join(", ")}`, tone: "plain" };
     case "card_sent":
+      if (event.related) return { text: `Sent related: ${event.title}`, tone: "plain" };
       return { text: `${SENT_LABELS[event.trigger] || "Sent"}: ${event.title} (for ${topic(event.topic)}) — ${event.reason}`, tone: "plain" };
+    case "topic_chosen":
+      return {
+        text: `Next topic: ${topic(event.topic)} — ${event.reason} (${SWITCH_LABELS[event.trigger] || event.trigger}, by ${BY_LABELS[event.by] || event.by})`,
+        tone: "ai",
+      };
     case "card_blocked":
       return { text: `Blocked card ${event.card}: ${event.reason}`, tone: "blocked" };
     case "reply":

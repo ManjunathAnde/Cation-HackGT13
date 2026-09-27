@@ -1,7 +1,11 @@
-"""LLM suggestions for the explorer (blueprint §8). The LLM only suggests; core.py decides.
+"""LLM calls (blueprint §8). The LLM may choose among validated candidates; plain code builds the
+candidate list, validates the choice, and falls back.
 
-Order: Redis cache → Gemini → Groq → the specialty's fixed fallback. We wait at most 5 seconds per provider
-and 2 seconds per Redis call; every answer, cached or fresh, is validated before use.
+choose_topic (Checkpoint 11e, the picker's switch points): Gemini → Groq, at most 3 seconds per
+provider, no cache; core.py falls back when it returns no topic.
+suggest_related (DORMANT since Checkpoint 11e: the explorer offer was replaced by switch points; kept
+for llm_check): Redis cache → Gemini → Groq → the specialty's fixed fallback, 5 seconds per provider,
+2 seconds per Redis call. Every answer, cached or fresh, is validated before use.
 Settings come from backend/.env; values already set in the environment win, so a script or
 shell can force LLM_MODE=off. Never prints or logs keys, REDIS_URL, or error text.
 """
@@ -21,11 +25,21 @@ from redis.retry import Retry
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 TIMEOUT_SECONDS = 5
+TOPIC_TIMEOUT_SECONDS = 3  # topic choice runs inside /reply, so it waits less (worst case ~6 s)
+REASON_MAX_CHARS = 160
 GROQ_MAX_TOKENS = 100  # the answer is ~18 tokens; without a cap Groq assumes ~1300 and the free tier (1000/min) refuses
 GEMINI_SERVER_DEADLINE_MS = 10_000  # Gemini rejects deadlines under 10 s; our 5 s limit is enforced below
 # Each provider call runs here so we can stop waiting after TIMEOUT_SECONDS. A call we stop waiting
 # for finishes in the background (bounded by the SDK timeouts) and its result is ignored.
 CALLS = ThreadPoolExecutor(max_workers=4)
+
+
+class BlockedTopic(ValueError):
+    """A provider chose a topic the specialty blocks (e.g. weight management): invalid, and logged by core."""
+
+    def __init__(self, topic):
+        super().__init__("blocked topic")
+        self.topic = topic
 DEFAULT_MODELS = {"gemini": "gemini-3.5-flash-lite", "groq": "qwen/qwen3.8-27b"}
 KEY_NAMES = {"gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY"}
 MODEL_NAMES = {"gemini": "GEMINI_MODEL", "groq": "GROQ_MODEL"}
@@ -37,6 +51,68 @@ CACHE_TTL_SECONDS = 86_400
 REDIS_TIMEOUT_SECONDS = 2
 REDIS_CLIENTS = {}  # one reusable client per REDIS_URL (TLS setup is slow)
 
+
+# ---------- topic choice (Checkpoint 11e) ----------
+
+def choose_topic(specialty, recent_cards, scores, candidates, blocked, prefer_new, tried=None):
+    """Ask Gemini, then Groq, for the next topic among `candidates` (no Redis).
+
+    Return (topic, reason, provider, blocked_suggestions). topic is None when LLM_MODE is off, there
+    are no candidates, or every provider fails; core.py then falls back. blocked_suggestions lists
+    (topic, provider) for answers that named a blocked topic (each also counts as invalid_output).
+    """
+    tried = [] if tried is None else tried
+    blocked_suggestions = []
+    if os.getenv("LLM_MODE", "off") != "live" or not candidates:
+        return None, None, None, blocked_suggestions
+
+    models = {provider: os.getenv(MODEL_NAMES[provider]) or DEFAULT_MODELS[provider] for provider in DEFAULT_MODELS}
+    prompt = build_topic_prompt(specialty, recent_cards, scores, candidates, prefer_new)
+    choice, provider = ask_providers(
+        prompt, models, lambda text: parse_choice(text, candidates, blocked), tried,
+        timeout=TOPIC_TIMEOUT_SECONDS, rejected=blocked_suggestions,
+    )
+    if provider is None:
+        return None, None, None, blocked_suggestions
+    topic, reason = choice
+    return topic, reason, provider, blocked_suggestions
+
+
+def build_topic_prompt(specialty, recent_cards, scores, candidates, prefer_new):
+    return (
+        "You choose the next research topic for a physician's reading list. "
+        "Do not give medical advice or clinical guidance; the reason only says why the topic fits their reading.\n"
+        f"Specialty: {specialty}\n"
+        f"Their last cards (title, topic, their answer): {json.dumps(recent_cards)}\n"
+        f"Their topic scores (higher means more interest): {json.dumps(scores)}\n"
+        f"Candidate topics: {json.dumps(list(candidates))}\n"
+        + ("They just answered yes twice in a row: prefer a new topic related to what they liked.\n"
+           if prefer_new else "")
+        + "Choose exactly one topic from the candidate list. Reply with only a JSON object: "
+        '{"topic": "<one candidate, copied exactly>", "reason": "<one short line, at most 20 words>"}. '
+        "No other text."
+    )
+
+
+def parse_choice(text, candidates, blocked):
+    """{"topic": <candidate>, "reason": <one line>} after stripping a code fence; else ValueError."""
+    if not isinstance(text, str):
+        raise ValueError("no text")
+    choice = json.loads(CODE_FENCE.sub("", text))
+    if not isinstance(choice, dict):
+        raise ValueError("not an object")
+    topic, reason = choice.get("topic"), choice.get("reason")
+    if topic in blocked:
+        raise BlockedTopic(topic)
+    if topic not in candidates:
+        raise ValueError("topic is not a candidate")
+    reason = reason.strip() if isinstance(reason, str) else ""
+    if not reason or "\n" in reason or len(reason) > REASON_MAX_CHARS:
+        raise ValueError("reason must be one short line")
+    return topic, reason
+
+
+# ---------- explorer suggestions (DORMANT since Checkpoint 11e; used only by llm_check) ----------
 
 def suggest_related(specialty, liked_topic, current_topics, candidates, fallback, tried=None):
     """Return (topics, by); `fallback` (the specialty's list) when LLM_MODE is off or every
@@ -56,7 +132,7 @@ def suggest_related(specialty, liked_topic, current_topics, candidates, fallback
         return cached, "redis"
 
     prompt = build_prompt(specialty, liked_topic, current_topics, candidates)
-    topics, provider = ask_providers(prompt, models, candidates, tried)
+    topics, provider = ask_providers(prompt, models, lambda text: parse_topics(text, candidates), tried)
     if provider:
         if lookup == "miss":  # only write if Redis just answered; skips a second timeout
             cache_set(key, topics)
@@ -64,24 +140,27 @@ def suggest_related(specialty, liked_topic, current_topics, candidates, fallback
     return list(fallback), "fallback"  # never cached
 
 
-def ask_providers(prompt, models, candidates, tried):
-    """Gemini, then Groq. Return (topics, provider) or (None, None) if both fail."""
+def ask_providers(prompt, models, parse, tried, timeout=TIMEOUT_SECONDS, rejected=None):
+    """Gemini, then Groq. Return (parse(answer), provider), or (None, None) if both fail.
+    `parse` raises ValueError for an invalid answer; a BlockedTopic is also added to `rejected`."""
     for provider, ask in (("gemini", ask_gemini), ("groq", ask_groq)):
         key = os.getenv(KEY_NAMES[provider])
         if not key:
             continue
         try:
-            text = CALLS.submit(ask, prompt, key, models[provider]).result(timeout=TIMEOUT_SECONDS)
+            text = CALLS.submit(ask, prompt, key, models[provider], timeout).result(timeout=timeout)
         except Exception as exc:  # any provider failure moves on to the next provider
             tried.append({"provider": provider, "result": failure_type(exc)})
             continue
         try:
-            topics = parse_topics(text, candidates)
-        except ValueError:
+            value = parse(text)
+        except ValueError as exc:
             tried.append({"provider": provider, "result": "invalid_output"})
+            if isinstance(exc, BlockedTopic) and rejected is not None:
+                rejected.append((exc.topic, provider))
             continue
         tried.append({"provider": provider, "result": "ok"})
-        return topics, provider
+        return value, provider
     return None, None
 
 
@@ -155,7 +234,7 @@ def build_prompt(specialty, liked_topic, current_topics, candidates):
     )
 
 
-def ask_gemini(prompt, key, model):
+def ask_gemini(prompt, key, model, timeout):  # we stop waiting after `timeout`; Gemini's deadline stays 10 s
     from google import genai
     from google.genai import types
 
@@ -172,10 +251,10 @@ def ask_gemini(prompt, key, model):
     return response.text
 
 
-def ask_groq(prompt, key, model):
+def ask_groq(prompt, key, model, timeout):
     from groq import Groq
 
-    client = Groq(api_key=key, timeout=TIMEOUT_SECONDS, max_retries=0)
+    client = Groq(api_key=key, timeout=timeout, max_retries=0)
     response = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],

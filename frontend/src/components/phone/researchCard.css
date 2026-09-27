@@ -95,3 +95,11 @@
 .brief-card__link:hover {
   text-decoration: underline;
 }
+
+/* "Related to what you liked: …" above the title (cards sent after a Yes-streak switch, Checkpoint 11e) */
+.brief-card__related {
+  margin: 14px 0 -6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--brand-ink);
+}

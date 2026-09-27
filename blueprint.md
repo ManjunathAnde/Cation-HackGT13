@@ -15,12 +15,14 @@ a message, the system learns nothing about why. Doctors tune out, and the engage
 1. Starts from a doctor's stated profile (specialty, practice conditions, interests)
 2. Sends research cards to a phone web page with two buttons: "Yes, more on this" / "Not interested"
 3. Updates per-topic scores from every reply
-4. Finds new research on topics the doctor likes and proposes related topics
+4. Sends research in short topic runs and, at each switch point, picks the next topic (related topics
+   after two Yes answers in a row)
 5. Blocks anything not supported by the drug's FDA label
 6. Exposes the learned profile and reply log for ION to use
 
-**Principle.** Plain code makes every decision. The LLM only suggests, and every LLM output
-is validated before use.
+**Principle.** The LLM may choose among validated candidates; plain code builds the candidate list,
+validates the choice, and falls back. Everything else (scoring, muting, the guard, blocking, sending) is
+decided by plain code, and every LLM output is validated before use.
 
 ---
 
@@ -120,13 +122,14 @@ Every event: `t` (epoch seconds, float), `type`, `doctor`, plus the details belo
 | type | details |
 | --- | --- |
 | onboarded | topics |
-| card_sent | card, title, topic (the topic it was picked for), reason (guard pass reason), trigger (`auto` or `manual`, §7.8) |
+| card_sent | card, title, topic (the topic it was picked for), reason (guard pass reason), trigger (`auto` or `manual`, §7.8), related (`{topics, reason}`, only for cards in a run started by a Yes-streak switch, §7.3) |
 | card_blocked | card, reason |
 | reply | card, answer, scores (after update) |
 | topic_muted | topic |
-| topic_offered | topic, by, providers_tried |
+| topic_offered | topic, by, providers_tried (no longer produced since 11e) |
 | topic_blocked | topic, reason, by, providers_tried |
-| topic_answer | topic, answer |
+| topic_answer | topic, answer (no longer produced since 11e: nothing creates offers) |
+| topic_chosen | topic, reason, by, providers_tried, trigger (`run_limit`, `yes_streak` or `topic_exhausted`, §7.3) |
 
 `by` is `stub` before Checkpoint 10a, then `redis`, `gemini`, `groq`, or `fallback` (10b adds `redis`).
 `providers_tried` lists each source attempted with its result, Redis first, e.g.
@@ -221,20 +224,41 @@ topic = 1. A condition or interest outside that specialty → rejected (API: 422
   but stay muted. No unmuting in MVP.
 - `yes` → card id added to the vault (no duplicates).
 
-### 7.3 Picker
-Candidates exclude cards already sent or blocked.
+### 7.3 Picker (Checkpoint 11e: topic runs and switch points)
+Candidates exclude cards already sent or blocked. The same picker serves `/send` and auto-send (§7.8);
+runs and streaks are computed from the doctor's history, so both modes behave the same.
 1. **Label cards first** (only for specialties with `label_cards: true`; others never receive label cards):
    a label card qualifies if any of its topics is an unmuted doctor topic.
-   Multiple label cards → cache file order. A label card is "picked for" its **first** topic.
-2. **Otherwise, by topic:** rank unmuted doctor topics by score (highest first). Ties: topics never
-   picked rank before picked ones; among picked topics, the one with the smallest `last_picked`
-   comes first; remaining ties → alphabetical.
-3. Within a topic, cards in cache file order. If the topic has no candidate cards, move to the next topic.
-4. Each candidate goes through the guard. Blocked → logged, added to `blocked`, and the picker
-   continues in the same call.
-5. On send: card id appended to `sent`; `last_picked[picked-for topic]` = length of `sent`;
+   Multiple label cards → cache file order. A label card is "picked for" its **first** topic and counts
+   toward that topic's run.
+2. **First card** (nothing sent yet, no label card): rank unmuted doctor topics by score (highest first);
+   ties: never picked first, then smallest `last_picked`, then alphabetical. No AI call.
+3. **Topic runs:** at most **2** cards in a row from the same topic, never 3. Within a run, the next card
+   comes from the same topic, no AI call.
+4. **Switch points** (the next topic is chosen, logged as `topic_chosen`), checked in this order:
+   - `yes_streak`: the doctor has just answered Yes twice in a row (a `not_interested` or `no_reply`
+     resets the streak; every switch resets it);
+   - `run_limit`: the current topic has just been sent twice in a row;
+   - `topic_exhausted`: within a run, the current topic has no card left that passes the guard, or it
+     was muted.
+5. **Choosing the topic** (§8): candidates = the doctor's unmuted topics plus her specialty's other
+   topics, keeping only topics with unsent cards and not blocked, and never the current topic when it
+   has just had 2 in a row. The AI chooses one (a Yes streak asks it to prefer a new related topic);
+   plain code validates it. Fallback (LLM off or every provider failed): highest score (topics not held
+   count as 0), then least recently picked, then alphabetical, other than the current topic; after a
+   Yes streak, topics the doctor doesn't hold first. Fallback reasons: `Your next highest-scoring topic.`
+   (run_limit, topic_exhausted), `A new topic related to what you liked.` (Yes streak, new topic),
+   `One of your top-scoring topics.` (Yes streak, topic already held).
+6. **After a switch:** a chosen topic the doctor doesn't hold is added at score 1 (and to `added`, so it
+   counts as a topic added). The next card comes from it; if it has no card that passes the guard, the
+   next topic in fallback order is tried; if none has one, nothing is sent. Cards in a run started by a
+   Yes-streak switch carry `related: {topics: <the liked topics>, reason}` (on `card_sent` and the inbox
+   card message).
+7. Within a topic, cards in cache file order. Each candidate goes through the guard. Blocked → logged,
+   added to `blocked`, and the picker continues in the same call.
+8. On send: card id appended to `sent`; `last_picked[picked-for topic]` = length of `sent`;
    `last_card_id` = card id.
-6. Nothing left → no card (`null`).
+9. Nothing left → no card (`null`).
 
 ### 7.4 Guard
 - Every sentence in `claims` must exactly equal a sentence in `label.json` (for a specialty without
@@ -243,7 +267,11 @@ Candidates exclude cards already sent or blocked.
 - Cards with no claims pass with reason `Title + link only`; label cards that pass use
   `Claims match label`.
 
-### 7.5 Explorer
+### 7.5 Explorer (replaced in Checkpoint 11e)
+Since Checkpoint 11e the Yes-streak switch point (§7.3) replaces the explorer offer: nothing creates offers,
+`/reply` always returns `offer: null`, and `/topic-reply`, the inbox offer message and the Brief's offer card
+remain only for compatibility (`/topic-reply` answers 400 `Topic <topic> is not on offer`). The rules below
+describe the dormant explorer (`llm.suggest_related`, still exercised by `llm_check`):
 - After a reply, check the replied card's topics in their card order. A topic is checked if its score
   is **≥ 3** and it is not in `explored`.
 - Each checked topic is added to `explored` (its one chance is used, even if nothing is offered).
@@ -279,7 +307,7 @@ Candidates exclude cards already sent or blocked.
 - When on, the backend sends the next card itself, synchronously inside the handler, after the
   response has been computed (responses are unchanged):
   - `/onboard`: after the doctor is created → first card.
-  - `/reply`: after scoring and the explorer → next card, only if no topic offer is pending.
+  - `/reply`: after scoring → next card (no offers exist since 11e, so a card always follows).
   - `/topic-reply`: after the answer is recorded → next card.
 - Sending uses the same picker and guard as `/send` (§7.3–7.4). Nothing is sent while a card or an
   offer is waiting; if the picker returns no card, nothing is sent (no error).
@@ -294,11 +322,15 @@ Candidates exclude cards already sent or blocked.
 
 | Use | Output validation |
 | --- | --- |
-| Explorer related topics | Parsed JSON list of 1–2 distinct topics, each in the candidate list (markdown code fences stripped first); otherwise try the next provider, then the fallback |
+| Next topic at a switch point (§7.3, 11e) | JSON object `{"topic", "reason"}` (code fences stripped): `topic` must be one of the candidates (so never a third card in a row); a blocked topic → logged `topic_blocked` with the specialty's reason and treated as invalid; `reason` one non-empty line, ≤ 160 characters, no medical advice; invalid → next provider, then the plain-code fallback |
+| Explorer related topics (dormant since 11e) | Parsed JSON list of 1–2 distinct topics, each in the candidate list (markdown code fences stripped first); otherwise try the next provider, then the fallback |
 | PubMed query wording (optional) | Must return ≥1 result, else use the §6 MeSH query |
 | One-line study summary (optional) | Plain text, ≤ 20 words, no clinical advice |
 
-- Order: Redis cache → Gemini → Groq → fallback. Timeout 5 s per provider. Log which one answered in `by`.
+- Topic choice (11e): Gemini → Groq → plain-code fallback, **3 s** per provider (worst case about 6 s),
+  no Redis. Input: specialty, last 4 answered cards (title, topic, answer), current scores, candidates,
+  and after a Yes streak a note to prefer a new related topic. Logged as `topic_chosen` with `by`.
+- Explorer (dormant): Redis cache → Gemini → Groq → fallback. Timeout 5 s per provider. Log which one answered in `by`.
 - Redis cache (Checkpoint 10b, live mode only; `LLM_MODE=off` skips Redis entirely):
   - Key: `cation:explorer:v1:` + SHA-256 of specialty, liked topic, sorted current topics, sorted
     candidates, both model names, and a prompt version constant.
@@ -379,7 +411,8 @@ event log (`card_sent` in `/events` and the `/metrics` timeline), never in other
 
 **Inbox messages.** `messages` is the doctor's full thread in order, built from the event log
 (`card_sent`, `reply`, `topic_offered`, `topic_answer`); blocked cards and blocked topics are not shown.
-- Card: `{ "type": "card", "t": <epoch s>, "card": Card, "answer": "yes" | "not_interested" | "no_reply" | null }`
+- Card: `{ "type": "card", "t": <epoch s>, "card": Card, "answer": "yes" | "not_interested" | "no_reply" | null, "related": {topics, reason} | null }`
+  (`related` since 11e: set for cards sent in a run started by a Yes-streak switch, §7.3)
 - Offer: `{ "type": "offer", "t": <epoch s>, "topic": string, "answer": "yes" | "no" | null }`
 
 `answer` is `null` until the doctor replies. `active` is the one message that still needs a reply
@@ -407,23 +440,40 @@ API base URL from `VITE_API_URL`, default `http://localhost:8000`.
 Dr. Patel: id `dr_patel`, endocrinology; conditions `type 2 diabetes`, `chronic kidney disease`;
 interests `ozempic safety`; frequency `weekly`.
 
-| Step | Event | Result |
-| --- | --- | --- |
-| 0 | Onboard | glycemic control 1, kidney outcomes 1, ozempic safety 1; ION: `General update for endocrinology` |
-| 1 | Label card (picked for kidney outcomes) → yes | kidney outcomes 2, ozempic safety 2; saved |
-| 2 | Safety study (never-picked tie-break) → not_interested | ozempic safety 1 |
-| 3 | Kidney study → yes | kidney outcomes 3; saved; offer `cardio-kidney-metabolic care`; `weight management` blocked |
-| 4 | Offer → yes | cardio-kidney-metabolic care 1; ION: `kidney outcomes content` (top score 3) |
-| End | Metrics | engagement 72, reply_rate 1.0, yes_rate 0.67, topics_added 1, muted 0, saved 2 |
+Checkpoint 11e picker (§7.3). Answers: Yes, Not interested, Yes, Yes, then Yes until 10 cards.
 
-The values above hold with `LLM_MODE=off`. With `LLM_MODE=live` the step-3 offer and block come
-from the LLM and may differ.
+| # | Card | Picked for | Why | Answer | Result |
+| --- | --- | --- | --- | --- | --- |
+| 0 | Onboard | — | — | — | glycemic control 1, kidney outcomes 1, ozempic safety 1; ION `General update for endocrinology` (also while card 1 waits) |
+| 1 | label-ozempic-ckd | kidney outcomes | label first | yes | kidney outcomes 2, ozempic safety 2; saved |
+| 2 | pm-41644273 | kidney outcomes | run | not_interested | kidney outcomes 1 |
+| — | switch `run_limit` → ozempic safety | | fallback: highest score | | |
+| 3 | pm-42594084 | ozempic safety | after switch | yes | ozempic safety 3 |
+| 4 | pm-39964295 | ozempic safety | run | yes | ozempic safety 4 |
+| — | switch `yes_streak` → cardio-kidney-metabolic care (added) | | new topic first | | |
+| 5 | pm-42233552 | cardio-kidney-metabolic care | related to ozempic safety | yes | ckm 2 |
+| 6 | pm-39211948 | cardio-kidney-metabolic care | run (related) | yes | ckm 3 |
+| — | switch `yes_streak` → cardiovascular outcomes (added) | | | | |
+| 7 | pm-27633186 | cardiovascular outcomes | related to ckm | yes | cv 2 |
+| 8 | pm-39210781 | cardiovascular outcomes | run (related) | yes | cv 3 |
+| — | switch `yes_streak` → ozempic safety (no new topic left) | | | | |
+| 9 | pm-38787986 | ozempic safety | related to cv | yes | ozempic safety 5 |
+| 10 | pm-40437949 | ozempic safety | run (related) | yes | ozempic safety 6; ION `ozempic safety content` (top score 6) |
+| End | switch `yes_streak` → cardio-kidney-metabolic care; `pm-39217553` waiting | | | | engagement 86, reply_rate 1.0, yes_rate 0.9, topics_added 2, muted 0, saved 9 |
 
-**Auto path (`AUTO_SEND=on`, §7.8).** Same cards, same order, same values, with no send steps:
-onboarding sends the label card; each reply sends the next card, except after step 3 (the offer is
-pending); accepting the offer in step 4 sends the next kidney study (`pm-42337824`), which is left
-waiting at the end (it does not affect the metrics). ION stays `General update for endocrinology`
-until the step-1 reply. With `AUTO_SEND=off`, the operator sends each card with `/send`.
+Dr. Evan: id `dr_evan`, dermatology; conditions `plaque psoriasis`, `atopic dermatitis`; interests
+`hidradenitis suppurativa`; weekly. Answers: Yes to 10 cards. Cards: pm-39018058, pm-37678572 (atopic
+dermatitis) → `yes_streak` → psoriatic arthritis (added): pm-38499325, pm-33789011 → `yes_streak` → atopic
+dermatitis: pm-36191689 → `topic_exhausted` → hidradenitis suppurativa: pm-27518661, pm-36746171 →
+`yes_streak` → psoriasis: pm-31583255, pm-37121476 → `yes_streak` → hidradenitis suppurativa: pm-38795716 →
+`topic_exhausted` → psoriasis, pm-39469713 waiting. End: engagement 85, reply_rate 1.0, yes_rate 1.0,
+topics_added 1, muted 0, saved 10; only clinical dermatology cards.
+
+The values above hold with `LLM_MODE=off` (every switch uses the plain-code fallback) and are the same
+with `AUTO_SEND=on` (cards arrive by themselves) and `AUTO_SEND=off` (the operator sends each with `/send`).
+With `LLM_MODE=live` the AI chooses the topic at each switch point and the path may differ. With the LLM
+off, weight management is never a candidate, so no `topic_blocked` appears; a live provider that
+suggests it is logged as `topic_blocked` (Compliance safeguard) and treated as invalid.
 
 ---
 
