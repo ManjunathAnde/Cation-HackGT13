@@ -13,7 +13,9 @@
       "claims": [
         "to reduce the risk of sustained eGFR decline, end-stage kidney disease, and cardiovascular death in adults with type 2 diabetes mellitus and chronic kidney disease."
       ],
-      "kind": "label"
+      "kind": "label",
+      "year": 2026,
+      "lane": "brand"
     },
     {
       "id": "pm-42594084",
@@ -25,7 +27,9 @@
         "ozempic safety"
       ],
       "claims": [],
-      "kind": "study"
+      "kind": "study",
+      "year": 2026,
+      "lane": "brand"
     },
     {
       "id": "pm-39964295",
@@ -37,7 +41,9 @@
         "ozempic safety"
       ],
       "claims": [],
-      "kind": "study"
+      "kind": "study",
+      "year": 2026,
+      "lane": "brand"
     },
     {
       "id": "pm-41644273",
@@ -49,7 +55,9 @@
         "kidney outcomes"
       ],
       "claims": [],
-      "kind": "study"
+      "kind": "study",
+      "year": 2026,
+      "lane": "brand"
     },
     {
       "id": "pm-42337824",
@@ -61,7 +69,9 @@
         "kidney outcomes"
       ],
       "claims": [],
-      "kind": "study"
+      "kind": "study",
+      "year": 2026,
+      "lane": "brand"
     },
     {
       "id": "pm-42233552",
@@ -73,7 +83,9 @@
         "cardio-kidney-metabolic care"
       ],
       "claims": [],
-      "kind": "study"
+      "kind": "study",
+      "year": 2026,
+      "lane": "brand"
     },
     {
       "id": "pm-39532398",
@@ -85,7 +97,359 @@
         "glycemic control"
       ],
       "claims": [],
-      "kind": "study"
+      "kind": "study",
+      "year": 2025,
+      "lane": "brand"
+    },
+    {
+      "id": "pm-38286487",
+      "title": "Comparative effectiveness of GLP-1 receptor agonists on glycaemic control, body weight, and lipid profile for type 2 diabetes: systematic review and network meta-analysis.",
+      "summary": "BMJ (Clinical research ed.), 2024 Jan 29",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/38286487/",
+      "topics": [
+        "glycemic control"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2024,
+      "lane": "brand"
+    },
+    {
+      "id": "pm-36722623",
+      "title": "Improvement of glycaemic control and treatment satisfaction by switching from liraglutide or dulaglutide to subcutaneous semaglutide in patients with type 2 diabetes: A multicentre, prospective, randomized, open-label, parallel-group comparison study (SWITCH-SEMA 1 study).",
+      "summary": "Diabetes, obesity & metabolism, 2023 Jun",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/36722623/",
+      "topics": [
+        "glycemic control"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2023,
+      "lane": "brand"
+    },
+    {
+      "id": "pm-37987208",
+      "title": "Effectiveness of Continuous Glucose Monitoring on Metrics of Glycemic Control in Type 2 Diabetes Mellitus: A Systematic Review and Meta-analysis of Randomized Controlled Trials.",
+      "summary": "The Journal of clinical endocrinology and metabolism, 2024 Mar 15",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/37987208/",
+      "topics": [
+        "glycemic control"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2024,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-27633186",
+      "title": "Semaglutide and Cardiovascular Outcomes in Patients with Type 2 Diabetes.",
+      "summary": "The New England journal of medicine, 2016 Nov 10",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/27633186/",
+      "topics": [
+        "cardiovascular outcomes"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2016,
+      "lane": "brand"
+    },
+    {
+      "id": "pm-39210781",
+      "title": "Cardiovascular, Kidney, and Safety Outcomes With GLP-1 Receptor Agonists Alone and in Combination With SGLT2 Inhibitors in Type 2 Diabetes: A Systematic Review and Meta-Analysis.",
+      "summary": "Circulation, 2024 Nov 26",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/39210781/",
+      "topics": [
+        "cardiovascular outcomes"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2024,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-33441402",
+      "title": "Sodium-glucose cotransporter protein-2 (SGLT-2) inhibitors and glucagon-like peptide-1 (GLP-1) receptor agonists for type 2 diabetes: systematic review and network meta-analysis of randomised controlled trials.",
+      "summary": "BMJ (Clinical research ed.), 2021 Jan 13",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/33441402/",
+      "topics": [
+        "cardiovascular outcomes"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2021,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-38785209",
+      "title": "Effects of Semaglutide on Chronic Kidney Disease in Patients with Type 2 Diabetes.",
+      "summary": "The New England journal of medicine, 2024 Jul 11",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/38785209/",
+      "topics": [
+        "kidney outcomes"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2024,
+      "lane": "brand"
+    },
+    {
+      "id": "pm-31422062",
+      "title": "Cardiovascular, mortality, and kidney outcomes with GLP-1 receptor agonists in patients with type 2 diabetes: a systematic review and meta-analysis of cardiovascular outcome trials.",
+      "summary": "The lancet. Diabetes & endocrinology, 2019 Oct",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/31422062/",
+      "topics": [
+        "kidney outcomes"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2019,
+      "lane": "brand"
+    },
+    {
+      "id": "pm-33264825",
+      "title": "Effect of Finerenone on Chronic Kidney Disease Outcomes in Type 2 Diabetes.",
+      "summary": "The New England journal of medicine, 2020 Dec 3",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/33264825/",
+      "topics": [
+        "kidney outcomes"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2020,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-38787986",
+      "title": "Gastrointestinal safety evaluation of semaglutide for the treatment of type 2 diabetes mellitus: A meta-analysis.",
+      "summary": "Medicine, 2024 May 24",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/38787986/",
+      "topics": [
+        "ozempic safety"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2024,
+      "lane": "brand"
+    },
+    {
+      "id": "pm-40437949",
+      "title": "GLP-1 receptor agonists and the risk for cancer: A meta-analysis of randomized controlled trials.",
+      "summary": "Diabetes, obesity & metabolism, 2025 Aug",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/40437949/",
+      "topics": [
+        "ozempic safety"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2025,
+      "lane": "brand"
+    },
+    {
+      "id": "pm-39211948",
+      "title": "Cardiovascular outcomes with semaglutide by severity of chronic kidney disease in type 2 diabetes: the FLOW trial.",
+      "summary": "European heart journal, 2025 Mar 24",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/39211948/",
+      "topics": [
+        "cardio-kidney-metabolic care"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2025,
+      "lane": "brand"
+    },
+    {
+      "id": "pm-39217553",
+      "title": "Effects of Semaglutide on Heart Failure Outcomes in Diabetes and Chronic Kidney Disease in the FLOW Trial.",
+      "summary": "Journal of the American College of Cardiology, 2024 Oct 22",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/39217553/",
+      "topics": [
+        "cardio-kidney-metabolic care"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2024,
+      "lane": "brand"
+    },
+    {
+      "id": "pm-39608381",
+      "title": "Effects of GLP-1 receptor agonists on kidney and cardiovascular disease outcomes: a meta-analysis of randomised controlled trials.",
+      "summary": "The lancet. Diabetes & endocrinology, 2025 Jan",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/39608381/",
+      "topics": [
+        "cardio-kidney-metabolic care"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2025,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-31583255",
+      "title": "Short-Term Efficacy and Safety of IL-17, IL-12/23, and IL-23 Inhibitors Brodalumab, Secukinumab, Ixekizumab, Ustekinumab, Guselkumab, Tildrakizumab, and Risankizumab for the Treatment of Moderate to Severe Plaque Psoriasis: A Systematic Review and Network Meta-Analysis of Randomized Controlled Trials.",
+      "summary": "Journal of immunology research, 2019",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/31583255/",
+      "topics": [
+        "psoriasis"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2019,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-37121476",
+      "title": "Comparative efficacy of biologics and oral agents in palmoplantar psoriasis and palmoplantar pustulosis: A systematic review and network meta-analysis of randomized clinical trials.",
+      "summary": "Journal of the American Academy of Dermatology, 2023 Aug",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/37121476/",
+      "topics": [
+        "psoriasis"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2023,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-39469713",
+      "title": "Biologics for generalized pustular psoriasis: a systematic review and single-arm meta-analysis.",
+      "summary": "Frontiers in immunology, 2024",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/39469713/",
+      "topics": [
+        "psoriasis"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2024,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-39018058",
+      "title": "Systemic Immunomodulatory Treatments for Atopic Dermatitis: Living Systematic Review and Network Meta-Analysis Update.",
+      "summary": "JAMA dermatology, 2024 Sep 1",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/39018058/",
+      "topics": [
+        "atopic dermatitis"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2024,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-37678572",
+      "title": "Topical treatments for atopic dermatitis (eczema): Systematic review and network meta-analysis of randomized trials.",
+      "summary": "The Journal of allergy and clinical immunology, 2023 Dec",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/37678572/",
+      "topics": [
+        "atopic dermatitis"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2023,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-36191689",
+      "title": "Allergen immunotherapy for atopic dermatitis: Systematic review and meta-analysis of benefits and harms.",
+      "summary": "The Journal of allergy and clinical immunology, 2023 Jan",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/36191689/",
+      "topics": [
+        "atopic dermatitis"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2023,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-27518661",
+      "title": "Two Phase 3 Trials of Adalimumab for Hidradenitis Suppurativa.",
+      "summary": "The New England journal of medicine, 2016 Aug 4",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/27518661/",
+      "topics": [
+        "hidradenitis suppurativa"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2016,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-36746171",
+      "title": "Secukinumab in moderate-to-severe hidradenitis suppurativa (SUNSHINE and SUNRISE): week 16 and week 52 results of two identical, multicentre, randomised, placebo-controlled, double-blind phase 3 trials.",
+      "summary": "Lancet (London, England), 2023 Mar 4",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/36746171/",
+      "topics": [
+        "hidradenitis suppurativa"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2023,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-38795716",
+      "title": "Efficacy and safety of bimekizumab in patients with moderate-to-severe hidradenitis suppurativa (BE HEARD I and BE HEARD II): two 48-week, randomised, double-blind, placebo-controlled, multicentre phase 3 trials.",
+      "summary": "Lancet (London, England), 2024 Jun 8",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/38795716/",
+      "topics": [
+        "hidradenitis suppurativa"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2024,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-38499325",
+      "title": "EULAR recommendations for the management of psoriatic arthritis with pharmacological therapies: 2023 update.",
+      "summary": "Annals of the rheumatic diseases, 2024 May 15",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/38499325/",
+      "topics": [
+        "psoriatic arthritis"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2024,
+      "lane": "clinical"
+    },
+    {
+      "id": "pm-33789011",
+      "title": "Trial of Upadacitinib and Adalimumab for Psoriatic Arthritis.",
+      "summary": "The New England journal of medicine, 2021 Apr 1",
+      "source": "PubMed",
+      "link": "https://pubmed.ncbi.nlm.nih.gov/33789011/",
+      "topics": [
+        "psoriatic arthritis"
+      ],
+      "claims": [],
+      "kind": "study",
+      "year": 2021,
+      "lane": "clinical"
     }
   ]
 }

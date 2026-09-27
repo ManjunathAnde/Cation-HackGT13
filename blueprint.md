@@ -101,11 +101,15 @@ No age, contact details, or patient information is collected.
 ### 5.2 Card (fixed format)
 ```json
 { "id": "", "title": "", "summary": "", "source": "", "link": "",
-  "topics": [], "claims": [], "kind": "label | study" }
+  "topics": [], "claims": [], "kind": "label | study", "year": 0, "lane": "brand | clinical" }
 ```
 - `claims`: clinical sentences; must match the label (§7.4). Studies always have `claims: []`.
-- Studies have exactly one topic: the topic whose MeSH query found them.
+- Studies have exactly one topic: the topic assigned when the study was chosen (§9).
 - `summary`: one neutral line; for studies, `<journal>, <publication date>`.
+- `year` (integer): publication year; for the label card, the label's effective year.
+- `lane`: `brand` (the drug or its class, §9) or `clinical` (treatment evidence for the doctor's
+  conditions, §9). `year` and `lane` are stored in `cache.json` only; the API's Card model ignores them,
+  so responses keep the eight fields above.
 
 ### 5.3 Event
 Every event: `t` (epoch seconds, float), `type`, `doctor`, plus the details below.
@@ -170,6 +174,13 @@ Studies: source `PubMed`, link `https://pubmed.ncbi.nlm.nih.gov/`, claims `[]`.
 - kidney outcomes → `("Diabetic Nephropathies"[MeSH] OR "Renal Insufficiency, Chronic"[MeSH])`
 - ozempic safety → `"Gastrointestinal Diseases"[MeSH]`
 - cardio-kidney-metabolic care → `("Cardiovascular Diseases"[MeSH] AND "Kidney Diseases"[MeSH])`
+
+**Dr. Evan (dermatology) topic → MeSH query map** (study cards only; these topics are not Ozempic
+approved topics, cannot be onboarded yet, and are never picked for Dr. Patel):
+- psoriasis → `"Psoriasis"[MeSH]`
+- atopic dermatitis → `"Dermatitis, Atopic"[MeSH]`
+- hidradenitis suppurativa → `"Hidradenitis Suppurativa"[MeSH]`
+- psoriatic arthritis → `"Arthritis, Psoriatic"[MeSH]`
 
 ---
 
@@ -286,13 +297,26 @@ Candidates exclude cards already sent or blocked.
 | DailyMed (NIH) | Ozempic label: label card + guard sentences | Copied manually into `label.json` and the label card |
 | PubMed E-utilities (NIH) | Study cards by MeSH topic | Offline script → `cache.json` |
 
-PubMed rules: query `(<§6 MeSH query>) AND semaglutide AND (randomized controlled trial[pt] OR
-systematic review[pt] OR meta-analysis[pt]) AND humans[MeSH]`, last 2 years; include `tool` and `email`
-parameters; ≤ 3 requests/second; store title, journal, date, and link only — never abstracts.
+PubMed rules (`python -m app.fetch_studies`, print-only): every search adds
+`(randomized controlled trial[pt] OR systematic review[pt] OR meta-analysis[pt]) AND humans[MeSH]`,
+no date limit, sorted by relevance, up to 8 results each; include `tool` and `email` parameters;
+≤ 3 requests/second; esearch + esummary only; store title, journal, date, and link only — never abstracts.
+- Dr. Patel, brand lane: `(<§6 MeSH query>) AND semaglutide AND (<filters>)`, for every approved topic.
+- Dr. Patel, clinical lane: `(<§6 MeSH query>) AND "Diabetes Mellitus, Type 2"[MeSH] AND (<filters>)
+  NOT semaglutide`, for every approved topic except `ozempic safety` (brand only).
+- Dr. Evan, clinical lane only (no drug term): `<§6 Dr. Evan MeSH query> AND (<filters>)`.
+- PMIDs already in `cache.json` are skipped; a PMID found by more than one search is a candidate only
+  under its first search.
 
-Selection rule: Studies are chosen by a human from the fetch output. Keep only studies about
-semaglutide or the GLP-1 receptor agonist class in adults with type 2 diabetes, including those with
-cardiovascular or kidney disease. Exclude other drugs, type 1 diabetes, and non-diabetic obesity populations.
+Selection rule: studies are chosen by a human from the fetch output, then appended to `cache.json`
+after the existing cards, in the order chosen (existing cards are never reordered), with the topic
+and lane the human assigns.
+- **Brand lane:** subcutaneous semaglutide (Ozempic) or GLP-1 receptor agonist class studies in adults
+  with type 2 diabetes, including those with heart or kidney disease. Exclude oral semaglutide (a
+  different product), studies with another named drug as the focus, type 1 diabetes, and non-diabetic
+  obesity populations.
+- **Clinical lane:** treatment evidence (trials, systematic reviews, meta-analyses) for the doctor's
+  conditions. No claims; title and link only, like every study card.
 
 ---
 
@@ -391,6 +415,15 @@ The offline fetch scripts use `urllib` from the standard library instead of http
       `adec4fd2-6858-4c99-91d4-531f5f2a2d79`, version 20, effective 2026-06-01
 - [x] Real PubMed studies for the demo path (Checkpoint 4): PMIDs 42594084, 39964295, 41644273,
       42337824, 42233552, 39532398
+- [x] Expanded study set (32 cards; appended after the 7 above, in this order):
+      Dr. Patel — glycemic control: 38286487 (brand), 36722623 (brand), 37987208 (clinical);
+      cardiovascular outcomes: 27633186 (brand), 39210781 (clinical), 33441402 (clinical);
+      kidney outcomes: 38785209 (brand), 31422062 (brand), 33264825 (clinical);
+      ozempic safety: 38787986 (brand), 40437949 (brand);
+      cardio-kidney-metabolic care: 39211948 (brand), 39217553 (brand), 39608381 (clinical).
+      Dr. Evan (all clinical) — psoriasis: 31583255, 37121476, 39469713; atopic dermatitis: 39018058,
+      37678572, 36191689; hidradenitis suppurativa: 27518661, 36746171, 38795716;
+      psoriatic arthritis: 38499325, 33789011.
 - [ ] Gemini and Groq model names confirmed against current provider lists (Checkpoint 10)
 - [ ] Run the frontend on the local network so a phone can open /phone: `VITE_API_URL` points to the
       laptop's local IP, both servers listen on the network interface (not only localhost), and CORS
