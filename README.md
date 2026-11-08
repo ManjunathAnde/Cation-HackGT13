@@ -1,45 +1,50 @@
-# Cation (Project in Expand Cache branch}
+# ⚡ Cation
 
-HackGT 13, Impiricus challenge. An agent that sends doctors research cards over RCS,
-learns from their Yes / Not interested replies, and feeds the learned profile to a
-simulated Impiricus ION platform. See `blueprint.md` for the full specification and
-`docs/CHECKPOINTS.md` for the build checkpoints.
+*The positively charged intelligence layer for Impiricus ION.*  
+Turn every doctor's tap into first-party engagement data while delivering high-signal, compliant medical research they actually want.
 
-## Prerequisites
+---
 
-- Python 3.10+
-- Node.js 18+
+Medical research publishes faster than clinicians can track—PubMed houses over 40 million biomedical citations, adding 1.6+ million annually. For a Healthcare Professional (HCP), the challenge is surface relevance. Broadcast marketing pushes generic updates that get ignored. 
 
-## Setup (once)
+**Cation replaces broadcast messaging with a real-time, closed-loop feedback engine.** Clinician taps generate immediate first-party signals, tuning topic affinities and updating Impiricus ION's Next Best Action (NBA) while serving curated NIH PubMed research and label-exact brand cards over an RCS-ready feed.
 
-Copy the env template into the backend and fill in keys as needed:
+*Deterministic code for compliance and routing. LLMs for semantic topic expansion.*
 
-```bash
-cp .env.example backend/.env
-```
+---
 
-## Run the backend (http://localhost:8000)
+## Why Cation?
 
-```bash
-cd backend
-python -m venv .venv
-# Windows (PowerShell):  .venv\Scripts\Activate.ps1
-# macOS/Linux:           source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
+Traditional HCP communication relies on vanity metrics (opens, impressions) and broad-specialty blasts. Cation enforces precision:
 
-Check it: http://localhost:8000/health should return `{"ok": true}`.
+- **First-party signals over vanity opens:** Every tap directly modifies an auditable affinity score ($+1$ for Yes, $-1$ for Not Interested, $-2$ mutes).
+- **Compliance by design:** Clinical and brand lanes are strictly segregated. Brand content enforces verbatim FDA label matches; off-label queries hard-fail to medical affairs.
+- **Fail-safe orchestration:** The LLM never touches delivery logic or card queries. It proposes candidate transitions only when triggered by explicit signal streaks, backed by two-tier provider failover and an immutable code fallback.
 
-## Run the frontend (http://localhost:5173)
+---
 
-In a second terminal:
+## System Architecture
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open http://localhost:5173 (it redirects to the Impiricus console at `/console`). The header shows
-**Backend connected** if the backend is up, or **Backend not running** if it isn't.
+```text
+  DOCTOR · Phone Interface                  IMPIRICUS · Operations Console
+  Onboard · Read · Yes/No · Vault           Engagement · Timeline · Next Best Action
+        │   ▲                                          ▲
+   Taps │   │ Next Card (Auto-Sent)                    │ Live Signals
+        ▼   │                                          │
+┌─────────────── CATION INTELLIGENCE LAYER · FastAPI ───────────────┐
+│                                                                   │
+│   Topic Scores ──► Card Picker ──► Compliance Guard ──► Delivery  │
+│   (±1 / -0.2)       │              (FDA Verbatim Match,           │
+│      ▲              │               Off-Label Guard)              │
+│      │              ▼                                             │
+│   Reply Events   AI Semantic Expansion at Switch Points           │
+│                  Gemini Flash ──► Groq Fallback ──► Rule Fallback │
+│                  (Constrained to Code-Validated Topic Candidates) │
+│                                                                   │
+└──────────┬─────────────────────────────────────────┬──────────────┘
+           │ Reads                                   │ Exposes
+           ▼                                         ▼
+   CURATED RESEARCH LIBRARY                  ION INTEGRATION API
+   Brand Lane · Clinical Lane                /profile · /events
+   • NIH PubMed (MeSH, RCTs, Reviews)        First-Party Affinity Signals
+   • DailyMed / FDA Structured Labels        Per-Doctor Event Stream
